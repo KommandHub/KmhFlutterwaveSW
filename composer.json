@@ -21,7 +21,7 @@
         "nigeria",
         "ecommerce"
     ],
-    "homepage": "https://github.com/KommandHub/flutterwave-sw",
+    "homepage": "https://github.com/KommandHub/KommandhubFlutterwaveSW",
     "authors": [
         {
             "name": "Kommandhub Limited",
@@ -32,9 +32,9 @@
     ],
     "support": {
         "email": "info@kommandhub.com",
-        "issues": "https://github.com/KommandHub/flutterwave-sw/issues",
-        "source": "https://github.com/KommandHub/flutterwave-sw",
-        "docs": "https://github.com/KommandHub/flutterwave-sw/blob/main/README.md"
+        "issues": "https://github.com/KommandHub/KommandhubFlutterwaveSW/issues",
+        "source": "https://github.com/KommandHub/KommandhubFlutterwaveSW",
+        "docs": "https://github.com/KommandHub/KommandhubFlutterwaveSW/blob/main/README.md"
     },
     "require": {
         "php": ">=8.2",

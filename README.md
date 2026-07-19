@@ -6,7 +6,7 @@
 
 # Flutterwave Payment for Shopware 6
 
-[![Shopware Plugin CI](https://github.com/KommandHub/flutterwave-sw/actions/workflows/php.yml/badge.svg)](https://github.com/KommandHub/flutterwave-sw/actions/workflows/php.yml)
+[![Shopware Plugin CI](https://github.com/KommandHub/KommandhubFlutterwaveSW/actions/workflows/php.yml/badge.svg)](https://github.com/KommandHub/KommandhubFlutterwaveSW/actions/workflows/php.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Shopware](https://img.shields.io/badge/Shopware-6.6%20%7C%206.7-blue.svg)](https://shopware.com)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777bb4.svg)](https://www.php.net)
