@@ -1,18 +1,18 @@
 {
   "main.js": {
-    "file": "assets/kommandhub-flutterwave-s-w-N5kxzFdi.js",
-    "name": "kommandhub-flutterwave-s-w",
+    "file": "assets/kmh-flutterwave-s-w-N5kxzFdi.js",
+    "name": "kmh-flutterwave-s-w",
     "src": "main.js",
     "isEntry": true,
     "css": [
-      "assets/kommandhub-flutterwave-s-w-D72_ykDM.css"
+      "assets/kmh-flutterwave-s-w-D72_ykDM.css"
     ],
     "assets": [
       "assets/icon-BT1AMZmi.png"
     ]
   },
-  "view/kommandhub-flutterwave-detail/icon.png": {
+  "view/kmh-flutterwave-detail/icon.png": {
     "file": "assets/icon-BT1AMZmi.png",
-    "src": "view/kommandhub-flutterwave-detail/icon.png"
+    "src": "view/kmh-flutterwave-detail/icon.png"
   }
 }

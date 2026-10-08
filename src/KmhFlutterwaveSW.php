@@ -18,7 +18,7 @@ use Shopware\Core\Framework\Plugin\Context\UpdateContext;
 use Shopware\Core\Framework\Plugin\Util\PluginIdProvider;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
-class KommandhubFlutterwaveSW extends Plugin
+class KmhFlutterwaveSW extends Plugin
 {
     /**
      * This plugin's own runtime dependencies (composer.json `require`) are
@@ -33,7 +33,7 @@ class KommandhubFlutterwaveSW extends Plugin
      * flake: Shopware's test bootstrapper force-reinstalls the plugin on every
      * run, which ran `composer remove` for it, wiping its entry — and PSR-4
      * mapping — from the root project's composer.json between test runs. That
-     * surfaced as "Class KommandhubFlutterwaveSW not found" on whichever run
+     * surfaced as "Class KmhFlutterwaveSW not found" on whichever run
      * followed a reinstall, or, when the class had already been autoloaded from
      * elsewhere in the same process, as this file silently reporting 0%
      * coverage despite being fully exercised.

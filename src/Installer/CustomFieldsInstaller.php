@@ -19,7 +19,7 @@ use Shopware\Core\System\CustomField\CustomFieldTypes;
  */
 class CustomFieldsInstaller
 {
-    private const CUSTOM_FIELDSET_NAME = 'kommandhub_flutterwave_fieldset';
+    private const CUSTOM_FIELDSET_NAME = 'kmh_flutterwave_fieldset';
 
     /**
      * @return array<string, mixed>

@@ -21,7 +21,7 @@
         "nigeria",
         "ecommerce"
     ],
-    "homepage": "https://github.com/KommandHub/KommandhubFlutterwaveSW",
+    "homepage": "https://github.com/KommandHub/KmhFlutterwaveSW",
     "authors": [
         {
             "name": "Kommandhub Limited",
@@ -32,9 +32,9 @@
     ],
     "support": {
         "email": "info@kommandhub.com",
-        "issues": "https://github.com/KommandHub/KommandhubFlutterwaveSW/issues",
-        "source": "https://github.com/KommandHub/KommandhubFlutterwaveSW",
-        "docs": "https://github.com/KommandHub/KommandhubFlutterwaveSW/blob/main/README.md"
+        "issues": "https://github.com/KommandHub/KmhFlutterwaveSW/issues",
+        "source": "https://github.com/KommandHub/KmhFlutterwaveSW",
+        "docs": "https://github.com/KommandHub/KmhFlutterwaveSW/blob/main/README.md"
     },
     "require": {
         "php": ">=8.2",
@@ -59,7 +59,7 @@
         }
     },
     "extra": {
-        "shopware-plugin-class": "Kommandhub\\FlutterwaveSW\\KommandhubFlutterwaveSW",
+        "shopware-plugin-class": "Kommandhub\\FlutterwaveSW\\KmhFlutterwaveSW",
         "label": {
             "de-DE": "Flutterwave-Zahlung von Kommandhub",
             "en-GB": "Flutterwave Payment by Kommandhub",

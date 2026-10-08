@@ -1,64 +1,64 @@
 {% block sw_order_document_card %}
-    {% block kommandhub_flutterwave_detail_card %}
+    {% block kmh_flutterwave_detail_card %}
     <mt-card
             v-if="order"
             position-identifier="sw-order-document-card"
-            class="kommandhub-flutterwave-detail-card"
+            class="kmh-flutterwave-detail-card"
     >
-        {% block kommandhub_flutterwave_detail_card_banner %}
+        {% block kmh_flutterwave_detail_card_banner %}
             <div
                     v-if="flutterwaveIcon"
-                    class="kommandhub-flutterwave-detail-card__banner"
+                    class="kmh-flutterwave-detail-card__banner"
             >
-                {% block kommandhub_flutterwave_detail_card_banner_icon %}
+                {% block kmh_flutterwave_detail_card_banner_icon %}
                 <img
                         :src="flutterwaveIcon"
-                        class="kommandhub-flutterwave-detail-card__icon"
+                        class="kmh-flutterwave-detail-card__icon"
                         alt="Flutterwave logo"
                 >
                 {% endblock %}
 
-                {% block kommandhub_flutterwave_detail_card_banner_title %}
-                <h3 class="kommandhub-flutterwave-detail-card__header">
-                    {{ $t('kommandhub-flutterwave-detail.header') }}
+                {% block kmh_flutterwave_detail_card_banner_title %}
+                <h3 class="kmh-flutterwave-detail-card__header">
+                    {{ $t('kmh-flutterwave-detail.header') }}
                 </h3>
                 {% endblock %}
             </div>
         {% endblock %}
 
-        {% block kommandhub_flutterwave_detail_card_grid %}
+        {% block kmh_flutterwave_detail_card_grid %}
             <template #grid>
-                {% block kommandhub_flutterwave_detail_content %}
-                {% block kommandhub_flutterwave_detail_transaction_grid %}
+                {% block kmh_flutterwave_detail_content %}
+                {% block kmh_flutterwave_detail_transaction_grid %}
                 <sw-data-grid
                         v-if="flutterwaveTransaction"
                         :data-source="flutterwaveTransactionData"
                         :columns="flutterwaveTransactionColumns"
                         :show-selection="false"
                         :show-actions="true"
-                        class="kommandhub-flutterwave-detail-grid"
+                        class="kmh-flutterwave-detail-grid"
                 >
                     <template #column-amount="{ item }">
-                        {% block kommandhub_flutterwave_detail_grid_column_amount %}
+                        {% block kmh_flutterwave_detail_grid_column_amount %}
                         {{ currencyFilter(item.amount, item.currency) }}
                         {% endblock %}
                     </template>
 
                     <template #column-settled="{ item }">
-                        {% block kommandhub_flutterwave_detail_grid_column_settled %}
+                        {% block kmh_flutterwave_detail_grid_column_settled %}
                         <template v-if="item.settled">{{ currencyFilter(item.settled, item.currency) }}</template>
                         <template v-else>–</template>
                         {% endblock %}
                     </template>
 
                     <template #column-fee="{ item }">
-                        {% block kommandhub_flutterwave_detail_grid_column_fee %}
+                        {% block kmh_flutterwave_detail_grid_column_fee %}
                         {{ currencyFilter(item.fee, item.currency) }}
                         {% endblock %}
                     </template>
 
                     <template #column-channel="{ item }">
-                        {% block kommandhub_flutterwave_detail_grid_column_channel %}
+                        {% block kmh_flutterwave_detail_grid_column_channel %}
                         <sw-label v-if="item.channel" variant="info" appearance="pill" size="small">
                             {{ item.channel }}
                         </sw-label>
@@ -67,7 +67,7 @@
                     </template>
 
                     <template #column-paymentMethod="{ item }">
-                        {% block kommandhub_flutterwave_detail_grid_column_payment_method %}
+                        {% block kmh_flutterwave_detail_grid_column_payment_method %}
                         <template v-if="item.paymentMethod && item.paymentMethod.translated">
                             {{ item.paymentMethod.translated.name }}
                         </template>
@@ -76,7 +76,7 @@
                     </template>
 
                     <template #column-state="{ item }">
-                        {% block kommandhub_flutterwave_detail_grid_column_state %}
+                        {% block kmh_flutterwave_detail_grid_column_state %}
                         <sw-label
                                 v-if="item.state && item.state.translated"
                                 variant="neutral"
@@ -88,7 +88,7 @@
                     </template>
 
                     <template #column-verifiedAt="{ item }">
-                        {% block kommandhub_flutterwave_detail_grid_column_verified_at %}
+                        {% block kmh_flutterwave_detail_grid_column_verified_at %}
                         <sw-time-ago
                                 v-if="item.verifiedAt"
                                 :date="item.verifiedAt"
@@ -99,26 +99,26 @@
                     </template>
 
                     <template #actions="{ item }">
-                        {% block kommandhub_flutterwave_detail_grid_actions_refund %}
+                        {% block kmh_flutterwave_detail_grid_actions_refund %}
                         <sw-context-menu-item
                                 v-if="canRefund"
                                 @click="onOpenRefundModal(item)"
                         >
-                            {{ $t('kommandhub-flutterwave-detail.grid.refund') }}
+                            {{ $t('kmh-flutterwave-detail.grid.refund') }}
                         </sw-context-menu-item>
                         {% endblock %}
                     </template>
                 </sw-data-grid>
                 {% endblock %}
 
-                {% block kommandhub_flutterwave_detail_empty_state %}
+                {% block kmh_flutterwave_detail_empty_state %}
                 <mt-empty-state
                         v-else
-                        :headline="$t('kommandhub-flutterwave-detail.emptyState.title')"
-                        :description="$t('kommandhub-flutterwave-detail.emptyState.subline')"
+                        :headline="$t('kmh-flutterwave-detail.emptyState.title')"
+                        :description="$t('kmh-flutterwave-detail.emptyState.subline')"
                         icon="regular-credit-card"
                         centered
-                        class="kommandhub-flutterwave-detail-empty-state"
+                        class="kmh-flutterwave-detail-empty-state"
                 />
                 {% endblock %}
                 {% endblock %}
@@ -127,35 +127,35 @@
     </mt-card>
     {% endblock %}
 
-    {% block kommandhub_flutterwave_detail_captures_card %}
+    {% block kmh_flutterwave_detail_captures_card %}
     <mt-card
             v-if="order && flutterwaveTransaction && captures.length"
-            position-identifier="kommandhub-flutterwave-detail-captures-card"
-            class="kommandhub-flutterwave-detail-captures-card"
+            position-identifier="kmh-flutterwave-detail-captures-card"
+            class="kmh-flutterwave-detail-captures-card"
     >
         <template #default>
-            {% block kommandhub_flutterwave_detail_captures_title %}
-            <h3 class="kommandhub-flutterwave-detail-captures-card__title">
-                {{ $t('kommandhub-flutterwave-detail.captures.title') }}
+            {% block kmh_flutterwave_detail_captures_title %}
+            <h3 class="kmh-flutterwave-detail-captures-card__title">
+                {{ $t('kmh-flutterwave-detail.captures.title') }}
             </h3>
             {% endblock %}
 
-            {% block kommandhub_flutterwave_detail_captures_grid %}
+            {% block kmh_flutterwave_detail_captures_grid %}
             <sw-data-grid
                     :data-source="captures"
                     :columns="flutterwaveCaptureColumns"
                     :show-selection="false"
                     :show-actions="true"
-                    class="kommandhub-flutterwave-detail-captures-grid"
+                    class="kmh-flutterwave-detail-captures-grid"
             >
                 <template #column-amount="{ item }">
-                    {% block kommandhub_flutterwave_detail_captures_grid_column_amount %}
+                    {% block kmh_flutterwave_detail_captures_grid_column_amount %}
                     {{ currencyFilter(item.amount ? item.amount.totalPrice : 0, customFields.flutterwave_currency) }}
                     {% endblock %}
                 </template>
 
                 <template #column-state="{ item }">
-                    {% block kommandhub_flutterwave_detail_captures_grid_column_state %}
+                    {% block kmh_flutterwave_detail_captures_grid_column_state %}
                     <sw-label v-if="item.state" variant="neutral" appearance="pill">
                         {{ item.state }}
                     </sw-label>
@@ -164,7 +164,7 @@
                 </template>
 
                 <template #column-createdAt="{ item }">
-                    {% block kommandhub_flutterwave_detail_captures_grid_column_created_at %}
+                    {% block kmh_flutterwave_detail_captures_grid_column_created_at %}
                     <sw-time-ago
                             v-if="item.createdAt"
                             :date="item.createdAt"
@@ -175,12 +175,12 @@
                 </template>
 
                 <template #actions="{ item }">
-                    {% block kommandhub_flutterwave_detail_captures_grid_actions %}
+                    {% block kmh_flutterwave_detail_captures_grid_actions %}
                     <sw-context-menu-item
                             v-if="item.refunds && item.refunds.length"
                             @click="onOpenRefundsListModal(item)"
                     >
-                        {{ $t('kommandhub-flutterwave-detail.captures.grid.refunds') }}
+                        {{ $t('kmh-flutterwave-detail.captures.grid.refunds') }}
                     </sw-context-menu-item>
                     {% endblock %}
                 </template>
@@ -190,28 +190,28 @@
     </mt-card>
     {% endblock %}
 
-    {% block kommandhub_flutterwave_detail_refunds_list_modal %}
+    {% block kmh_flutterwave_detail_refunds_list_modal %}
     <sw-modal
             v-if="order && showRefundsListModal"
-            :title="$t('kommandhub-flutterwave-detail.refunds.listModalTitle')"
+            :title="$t('kmh-flutterwave-detail.refunds.listModalTitle')"
             @modal-close="onCloseRefundsListModal"
     >
-        {% block kommandhub_flutterwave_detail_refunds_list_grid %}
+        {% block kmh_flutterwave_detail_refunds_list_grid %}
         <sw-data-grid
                 :data-source="flutterwaveRefunds"
                 :columns="flutterwaveRefundColumns"
                 :show-selection="false"
                 :show-actions="false"
-                class="kommandhub-flutterwave-detail-refunds-grid"
+                class="kmh-flutterwave-detail-refunds-grid"
         >
             <template #column-amount="{ item }">
-                {% block kommandhub_flutterwave_detail_refunds_list_grid_column_amount %}
+                {% block kmh_flutterwave_detail_refunds_list_grid_column_amount %}
                 {{ currencyFilter(item.amount ? item.amount.totalPrice : 0, customFields.flutterwave_currency) }}
                 {% endblock %}
             </template>
 
             <template #column-state="{ item }">
-                {% block kommandhub_flutterwave_detail_refunds_list_grid_column_state %}
+                {% block kmh_flutterwave_detail_refunds_list_grid_column_state %}
                 <sw-label v-if="item.state" variant="neutral" appearance="pill">
                     {{ item.state }}
                 </sw-label>
@@ -220,14 +220,14 @@
             </template>
 
             <template #column-externalReference="{ item }">
-                {% block kommandhub_flutterwave_detail_refunds_list_grid_column_external_reference %}
+                {% block kmh_flutterwave_detail_refunds_list_grid_column_external_reference %}
                 <template v-if="item.externalReference">{{ item.externalReference }}</template>
                 <template v-else>–</template>
                 {% endblock %}
             </template>
 
             <template #column-createdAt="{ item }">
-                {% block kommandhub_flutterwave_detail_refunds_list_grid_column_created_at %}
+                {% block kmh_flutterwave_detail_refunds_list_grid_column_created_at %}
                 <sw-time-ago
                         v-if="item.createdAt"
                         :date="item.createdAt"
@@ -239,7 +239,7 @@
         </sw-data-grid>
         {% endblock %}
 
-        {% block kommandhub_flutterwave_detail_refunds_list_modal_footer %}
+        {% block kmh_flutterwave_detail_refunds_list_modal_footer %}
         <template #modal-footer>
             <mt-button
                     variant="secondary"
@@ -253,20 +253,20 @@
     </sw-modal>
     {% endblock %}
 
-    {% block kommandhub_flutterwave_detail_refund_modal %}
+    {% block kmh_flutterwave_detail_refund_modal %}
     <sw-modal
             v-if="order && showRefundModal"
-            :title="$t('kommandhub-flutterwave-detail.refund.modalTitle')"
+            :title="$t('kmh-flutterwave-detail.refund.modalTitle')"
             @modal-close="onCloseRefundModal"
     >
-        {% block kommandhub_flutterwave_detail_refund_modal_content %}
+        {% block kmh_flutterwave_detail_refund_modal_content %}
         <sw-container columns="1fr 1fr" gap="16px">
-            {% block kommandhub_flutterwave_detail_refund_modal_amount_field %}
+            {% block kmh_flutterwave_detail_refund_modal_amount_field %}
             <mt-number-field
                     v-model="refundAmount"
-                    :label="$t('kommandhub-flutterwave-detail.refund.amountLabel')"
-                    :placeholder="$t('kommandhub-flutterwave-detail.refund.amountPlaceholder')"
-                    :help-text="$t('kommandhub-flutterwave-detail.refund.amountHelpText')"
+                    :label="$t('kmh-flutterwave-detail.refund.amountLabel')"
+                    :placeholder="$t('kmh-flutterwave-detail.refund.amountPlaceholder')"
+                    :help-text="$t('kmh-flutterwave-detail.refund.amountHelpText')"
                     number-type="float"
                     :digits="refundAmountDigits"
                     :min="minRefundableAmount"
@@ -274,25 +274,25 @@
             />
             {% endblock %}
 
-            {% block kommandhub_flutterwave_detail_refund_modal_currency_field %}
+            {% block kmh_flutterwave_detail_refund_modal_currency_field %}
             <mt-text-field
                     v-model="refundCurrency"
-                    :label="$t('kommandhub-flutterwave-detail.refund.currencyLabel')"
+                    :label="$t('kmh-flutterwave-detail.refund.currencyLabel')"
                     disabled
             />
             {% endblock %}
         </sw-container>
 
-        {% block kommandhub_flutterwave_detail_refund_modal_comments_field %}
+        {% block kmh_flutterwave_detail_refund_modal_comments_field %}
         <mt-text-field
                 v-model="comments"
-                :label="$t('kommandhub-flutterwave-detail.refund.commentsLabel')"
-                :placeholder="$t('kommandhub-flutterwave-detail.refund.commentsPlaceholder')"
+                :label="$t('kmh-flutterwave-detail.refund.commentsLabel')"
+                :placeholder="$t('kmh-flutterwave-detail.refund.commentsPlaceholder')"
         />
         {% endblock %}
         {% endblock %}
 
-        {% block kommandhub_flutterwave_detail_refund_modal_footer %}
+        {% block kmh_flutterwave_detail_refund_modal_footer %}
         <template #modal-footer>
             <mt-button
                     variant="secondary"
@@ -310,7 +310,7 @@
                     @process-finish="onRefundFinished"
                     @click="onConfirmRefund"
             >
-                {{ $t('kommandhub-flutterwave-detail.refund.confirmButton') }}
+                {{ $t('kmh-flutterwave-detail.refund.confirmButton') }}
             </sw-button-process>
         </template>
         {% endblock %}

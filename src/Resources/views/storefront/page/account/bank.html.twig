@@ -1,6 +1,6 @@
 {% block page_account_overview_flutterwave_bank_details %}
     {% block page_account_overview_flutterwave_bank_details_visibility %}
-        {% if config('KommandhubFlutterwaveSW.config.collectBankData') %}
+        {% if config('KmhFlutterwaveSW.config.collectBankData') %}
             {% block page_account_overview_flutterwave_bank_details_wrapper %}
             <div class="row js-account-overview-bank_details">
                 {% block page_account_overview_flutterwave_bank_details_inner %}
@@ -11,7 +11,7 @@
                                 <div class="card-body">
                                     {% block page_account_overview_flutterwave_bank_details_title %}
                                         <h2 class="card-title">
-                                            {{ 'kommandhub-flutterwave.bank.title'|trans|sw_sanitize }}
+                                            {{ 'kmh-flutterwave.bank.title'|trans|sw_sanitize }}
                                         </h2>
                                     {% endblock %}
 
@@ -20,30 +20,30 @@
                                         <div class="bank-details-content">
                                             {% block page_account_overview_flutterwave_bank_details_bank_name %}
                                             <p>
-                                                <strong>{{ 'kommandhub-flutterwave.bank.bankNameLabel'|trans|sw_sanitize }}:</strong><br>
-                                                {{ customFields.kommandhub_flutterwave_bank_name|default('–') }}
+                                                <strong>{{ 'kmh-flutterwave.bank.bankNameLabel'|trans|sw_sanitize }}:</strong><br>
+                                                {{ customFields.kmh_flutterwave_bank_name|default('–') }}
                                             </p>
                                             {% endblock %}
 
                                             {% block page_account_overview_flutterwave_bank_details_account_number %}
                                             <p>
-                                                <strong>{{ 'kommandhub-flutterwave.bank.accountNumberLabel'|trans|sw_sanitize }}:</strong><br>
-                                                {{ customFields.kommandhub_flutterwave_account_number|default('–') }}
+                                                <strong>{{ 'kmh-flutterwave.bank.accountNumberLabel'|trans|sw_sanitize }}:</strong><br>
+                                                {{ customFields.kmh_flutterwave_account_number|default('–') }}
                                             </p>
                                             {% endblock %}
 
                                             {% block page_account_overview_flutterwave_bank_details_account_name %}
                                             <p>
-                                                <strong>{{ 'kommandhub-flutterwave.bank.accountNameLabel'|trans|sw_sanitize }}:</strong><br>
-                                                {{ customFields.kommandhub_flutterwave_account_name|default('–') }}
+                                                <strong>{{ 'kmh-flutterwave.bank.accountNameLabel'|trans|sw_sanitize }}:</strong><br>
+                                                {{ customFields.kmh_flutterwave_account_name|default('–') }}
                                             </p>
                                             {% endblock %}
 
                                             {% block page_account_overview_flutterwave_bank_details_bvn %}
-                                                {% if config('KommandhubFlutterwaveSW.config.showBvnField') %}
-                                                    {% set bvn = customFields.kommandhub_flutterwave_bvn %}
+                                                {% if config('KmhFlutterwaveSW.config.showBvnField') %}
+                                                    {% set bvn = customFields.kmh_flutterwave_bvn %}
                                                     <p>
-                                                        <strong>{{ 'kommandhub-flutterwave.bank.bvnLabel'|trans|sw_sanitize }}:</strong><br>
+                                                        <strong>{{ 'kmh-flutterwave.bank.bvnLabel'|trans|sw_sanitize }}:</strong><br>
                                                         {#  BVN is sensitive: show only the last 4 digits at rest. #}
                                                         {% if bvn %}
                                                             {{ ('•••••••' ~ bvn[-4:])|sw_sanitize }}

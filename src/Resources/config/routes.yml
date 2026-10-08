@@ -1,11 +1,11 @@
-kommandhub_flutterwave_bank_verification:
+kmh_flutterwave_bank_verification:
     resource: ../../BankVerification/Controller/
     type: attribute
 
-kommandhub_flutterwave_administration:
+kmh_flutterwave_administration:
     resource: ../../Administration/Controller/
     type: attribute
 
-kommandhub_flutterwave_webhook:
+kmh_flutterwave_webhook:
     resource: ../../Webhook/Controller/
     type: attribute
