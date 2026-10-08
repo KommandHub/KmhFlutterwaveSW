@@ -4,7 +4,7 @@
         <sw-tabs-item
                 v-if="!isLoading && isFlutterwavePayment"
                 class="sw-order-detail__tabs-tab-flutterwave"
-                :route="{ name: 'kommandhub.flutterwave.detail', params: { id: $route.params.id } }"
+                :route="{ name: 'kmh.flutterwave.detail', params: { id: $route.params.id } }"
                 :title="$t('sw-order.detail.tabFlutterwave')"
         >
             {% block sw_order_detail_content_tabs_flutterwave_label %}

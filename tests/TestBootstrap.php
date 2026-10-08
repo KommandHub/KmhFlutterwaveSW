@@ -7,7 +7,7 @@ use Shopware\Core\TestBootstrapper;
 $loader = (new TestBootstrapper())
     ->setPlatformEmbedded(true)
     ->addCallingPlugin()
-    ->addActivePlugins('KommandhubFlutterwaveSW')
+    ->addActivePlugins('KmhFlutterwaveSW')
     ->setForceInstallPlugins(true)
     ->bootstrap()
     ->getClassLoader();

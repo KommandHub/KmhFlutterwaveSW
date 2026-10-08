@@ -1,4 +1,4 @@
-.kommandhub-flutterwave-detail-card {
+.kmh-flutterwave-detail-card {
     &__banner {
         display: flex;
         flex-direction: column;
@@ -23,11 +23,11 @@
         text-align: center;
     }
 
-    .kommandhub-flutterwave-detail-grid {
+    .kmh-flutterwave-detail-grid {
         padding: 0;
     }
 
-    .kommandhub-flutterwave-detail-empty-state {
+    .kmh-flutterwave-detail-empty-state {
         margin: 0;
         min-height: 400px;
         display: flex;
@@ -40,7 +40,7 @@
     }
 }
 
-.kommandhub-flutterwave-detail-captures-card {
+.kmh-flutterwave-detail-captures-card {
     margin-top: 20px;
 
     &__title {

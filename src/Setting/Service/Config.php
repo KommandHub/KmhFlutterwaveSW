@@ -8,7 +8,7 @@ use Shopware\Core\System\SystemConfig\SystemConfigService;
 
 class Config
 {
-    public const KEY = 'KommandhubFlutterwaveSW.config.';
+    public const KEY = 'KmhFlutterwaveSW.config.';
 
     public function __construct(private readonly SystemConfigService $systemConfigService)
     {

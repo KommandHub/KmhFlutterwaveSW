@@ -15,18 +15,18 @@ Shopware.Service().register('flutterwaveRefundService', (container) => {
 
 import './acl';
 import './module/sw-order/page/sw-order-detail';
-import './view/kommandhub-flutterwave-detail';
+import './view/kmh-flutterwave-detail';
 
-Shopware.Module.register('kommandhub-flutterwave-detail', {
+Shopware.Module.register('kmh-flutterwave-detail', {
     routeMiddleware(next, currentRoute) {
         if (currentRoute.name === 'sw.order.detail') {
-            const flutterwaveRoute = 'kommandhub.flutterwave.detail';
+            const flutterwaveRoute = 'kmh.flutterwave.detail';
 
             if (!currentRoute.children.some((child) => child.name === flutterwaveRoute)) {
                 currentRoute.children.push({
                     name: flutterwaveRoute,
-                    path: 'kommandhub/flutterwave',
-                    component: 'kommandhub-flutterwave-detail',
+                    path: 'kmh/flutterwave',
+                    component: 'kmh-flutterwave-detail',
                     meta: {
                         parentPath: 'sw.order.detail',
                         privilege: 'order.viewer',

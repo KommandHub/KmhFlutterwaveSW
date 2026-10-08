@@ -64,11 +64,11 @@ class FlutterwaveConstants
      * Customer custom-field keys for the stored bank profile. Kept here so the
      * installer, controller and templates share one definition.
      */
-    public const CUSTOMER_FIELD_BANK_NAME = 'kommandhub_flutterwave_bank_name';
-    public const CUSTOMER_FIELD_BANK_CODE = 'kommandhub_flutterwave_bank_code';
-    public const CUSTOMER_FIELD_ACCOUNT_NUMBER = 'kommandhub_flutterwave_account_number';
-    public const CUSTOMER_FIELD_ACCOUNT_NAME = 'kommandhub_flutterwave_account_name';
-    public const CUSTOMER_FIELD_BVN = 'kommandhub_flutterwave_bvn';
+    public const CUSTOMER_FIELD_BANK_NAME = 'kmh_flutterwave_bank_name';
+    public const CUSTOMER_FIELD_BANK_CODE = 'kmh_flutterwave_bank_code';
+    public const CUSTOMER_FIELD_ACCOUNT_NUMBER = 'kmh_flutterwave_account_number';
+    public const CUSTOMER_FIELD_ACCOUNT_NAME = 'kmh_flutterwave_account_name';
+    public const CUSTOMER_FIELD_BVN = 'kmh_flutterwave_bvn';
 
     /**
      * Nigerian bank account numbers are exactly 10 digits; BVNs exactly 11.

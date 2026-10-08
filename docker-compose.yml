@@ -13,14 +13,14 @@ services:
     volumes:
       # ----------------------------------------------------------------------------------------------------------------------------------
       # PLUGINS
-      - "./:/var/www/html/custom/static-plugins/KommandhubFlutterwaveSW"
+      - "./:/var/www/html/custom/static-plugins/KmhFlutterwaveSW"
       - "database:/var/lib/mysql"
       - "./Makefile:/var/www/html/Makefile"
       # ----------------------------------------------------------------------------------------------------------------------------------
       # EXCLUDE
-      - "/var/www/html/custom/static-plugins/KommandhubFlutterwaveSW/.git/"
-      - "/var/www/html/custom/static-plugins/KommandhubFlutterwaveSW/node_modules/"
-      - "/var/www/html/custom/static-plugins/KommandhubFlutterwaveSW/vendor/"
+      - "/var/www/html/custom/static-plugins/KmhFlutterwaveSW/.git/"
+      - "/var/www/html/custom/static-plugins/KmhFlutterwaveSW/node_modules/"
+      - "/var/www/html/custom/static-plugins/KmhFlutterwaveSW/vendor/"
       # ----------------------------------------------------------------------------------------------------------------------------------
 
 volumes:

@@ -1,5 +1,5 @@
-import template from './kommandhub-flutterwave-detail.html.twig';
-import './kommandhub-flutterwave-detail.scss';
+import template from './kmh-flutterwave-detail.html.twig';
+import './kmh-flutterwave-detail.scss';
 import icon from './icon.png';
 import { FLUTTERWAVE_HANDLER_IDENTIFIER, FLUTTERWAVE_REFERENCE_FIELD, isAbortError } from '../../util/flutterwave';
 import {
@@ -22,13 +22,13 @@ const CF = {
     verifiedAt: 'flutterwave_verified_at',
 };
 
-Shopware.Component.register('kommandhub-flutterwave-detail', {
+Shopware.Component.register('kmh-flutterwave-detail', {
     template,
 
     mixins: [Mixin.getByName('notification')],
 
     metaInfo() {
-        return { title: this.$t('kommandhub-flutterwave-detail.title') };
+        return { title: this.$t('kmh-flutterwave-detail.title') };
     },
 
     inject: [
@@ -140,15 +140,15 @@ Shopware.Component.register('kommandhub-flutterwave-detail', {
          */
         flutterwaveTransactionColumns() {
             return [
-                { property: 'amount', label: 'kommandhub-flutterwave-detail.grid.chargedAmount', primary: true },
-                { property: 'settled', label: 'kommandhub-flutterwave-detail.grid.settledAmount' },
-                { property: 'reference', label: 'kommandhub-flutterwave-detail.grid.reference' },
-                { property: 'transactionId', label: 'kommandhub-flutterwave-detail.grid.transactionId' },
-                { property: 'fee', label: 'kommandhub-flutterwave-detail.grid.processingFee' },
-                { property: 'channel', label: 'kommandhub-flutterwave-detail.grid.channel' },
-                { property: 'paymentMethod', label: 'kommandhub-flutterwave-detail.grid.paymentMethod' },
-                { property: 'state', label: 'kommandhub-flutterwave-detail.grid.state' },
-                { property: 'verifiedAt', label: 'kommandhub-flutterwave-detail.grid.verifiedAt' },
+                { property: 'amount', label: 'kmh-flutterwave-detail.grid.chargedAmount', primary: true },
+                { property: 'settled', label: 'kmh-flutterwave-detail.grid.settledAmount' },
+                { property: 'reference', label: 'kmh-flutterwave-detail.grid.reference' },
+                { property: 'transactionId', label: 'kmh-flutterwave-detail.grid.transactionId' },
+                { property: 'fee', label: 'kmh-flutterwave-detail.grid.processingFee' },
+                { property: 'channel', label: 'kmh-flutterwave-detail.grid.channel' },
+                { property: 'paymentMethod', label: 'kmh-flutterwave-detail.grid.paymentMethod' },
+                { property: 'state', label: 'kmh-flutterwave-detail.grid.state' },
+                { property: 'verifiedAt', label: 'kmh-flutterwave-detail.grid.verifiedAt' },
             ];
         },
 
@@ -159,9 +159,9 @@ Shopware.Component.register('kommandhub-flutterwave-detail', {
          */
         flutterwaveCaptureColumns() {
             return [
-                { property: 'amount', label: 'kommandhub-flutterwave-detail.captures.grid.amount', primary: true },
-                { property: 'state', label: 'kommandhub-flutterwave-detail.captures.grid.state' },
-                { property: 'createdAt', label: 'kommandhub-flutterwave-detail.captures.grid.createdAt' },
+                { property: 'amount', label: 'kmh-flutterwave-detail.captures.grid.amount', primary: true },
+                { property: 'state', label: 'kmh-flutterwave-detail.captures.grid.state' },
+                { property: 'createdAt', label: 'kmh-flutterwave-detail.captures.grid.createdAt' },
             ];
         },
 
@@ -172,10 +172,10 @@ Shopware.Component.register('kommandhub-flutterwave-detail', {
          */
         flutterwaveRefundColumns() {
             return [
-                { property: 'amount', label: 'kommandhub-flutterwave-detail.refunds.grid.amount', primary: true },
-                { property: 'state', label: 'kommandhub-flutterwave-detail.refunds.grid.state' },
-                { property: 'externalReference', label: 'kommandhub-flutterwave-detail.refunds.grid.externalReference' },
-                { property: 'createdAt', label: 'kommandhub-flutterwave-detail.refunds.grid.createdAt' },
+                { property: 'amount', label: 'kmh-flutterwave-detail.refunds.grid.amount', primary: true },
+                { property: 'state', label: 'kmh-flutterwave-detail.refunds.grid.state' },
+                { property: 'externalReference', label: 'kmh-flutterwave-detail.refunds.grid.externalReference' },
+                { property: 'createdAt', label: 'kmh-flutterwave-detail.refunds.grid.createdAt' },
             ];
         },
 
@@ -216,11 +216,11 @@ Shopware.Component.register('kommandhub-flutterwave-detail', {
         },
 
         refundEnabled() {
-            return this.config['KommandhubFlutterwaveSW.config.refundEnabled'] !== false;
+            return this.config['KmhFlutterwaveSW.config.refundEnabled'] !== false;
         },
 
         configuredMinRefund() {
-            const value = Number(this.config['KommandhubFlutterwaveSW.config.minimumRefundAmount']);
+            const value = Number(this.config['KmhFlutterwaveSW.config.minimumRefundAmount']);
 
             return Number.isFinite(value) && value > 0 ? value : 0;
         },
@@ -279,7 +279,7 @@ Shopware.Component.register('kommandhub-flutterwave-detail', {
     methods: {
         async loadConfig(salesChannelId) {
             this.config = await this.systemConfigApiService.getValues(
-                'KommandhubFlutterwaveSW.config',
+                'KmhFlutterwaveSW.config',
                 salesChannelId
             );
         },
@@ -388,7 +388,7 @@ Shopware.Component.register('kommandhub-flutterwave-detail', {
         onConfirmRefund() {
             if (this.refundAmount < this.minRefundableAmount) {
                 this.createNotificationError({
-                    message: this.$t('kommandhub-flutterwave-detail.refund.errorAmountTooLow', {
+                    message: this.$t('kmh-flutterwave-detail.refund.errorAmountTooLow', {
                         minAmount: this.currencyFilter(this.minRefundableAmount, this.activeCurrency),
                     }),
                 });
@@ -397,7 +397,7 @@ Shopware.Component.register('kommandhub-flutterwave-detail', {
 
             if (this.refundAmount > this.maxRefundableAmount) {
                 this.createNotificationError({
-                    message: this.$t('kommandhub-flutterwave-detail.refund.errorAmountTooHigh', {
+                    message: this.$t('kmh-flutterwave-detail.refund.errorAmountTooHigh', {
                         maxAmount: this.currencyFilter(this.maxRefundableAmount, this.activeCurrency),
                     }),
                 });
@@ -417,7 +417,7 @@ Shopware.Component.register('kommandhub-flutterwave-detail', {
                 .then(async () => {
                     this.isRefundSuccess = true;
                     this.createNotificationSuccess({
-                        message: this.$t('kommandhub-flutterwave-detail.refund.success'),
+                        message: this.$t('kmh-flutterwave-detail.refund.success'),
                     });
                     await this.loadCapturesAndRefunds();
                 })
