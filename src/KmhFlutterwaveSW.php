@@ -16,6 +16,7 @@ use Shopware\Core\Framework\Plugin\Context\InstallContext;
 use Shopware\Core\Framework\Plugin\Context\UninstallContext;
 use Shopware\Core\Framework\Plugin\Context\UpdateContext;
 use Shopware\Core\Framework\Plugin\Util\PluginIdProvider;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class KmhFlutterwaveSW extends Plugin
@@ -41,6 +42,17 @@ class KmhFlutterwaveSW extends Plugin
     public function executeComposerCommands(): bool
     {
         return false;
+    }
+
+    /**
+     * Shopware loads `Resources/config/packages/*` only for bundles that opt in
+     * here; the plugin ships its bank-verification rate limiter there.
+     */
+    public function build(ContainerBuilder $container): void
+    {
+        parent::build($container);
+
+        $this->buildDefaultConfig($container);
     }
 
     public function install(InstallContext $installContext): void

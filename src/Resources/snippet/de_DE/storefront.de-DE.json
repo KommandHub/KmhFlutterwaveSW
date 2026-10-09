@@ -12,7 +12,13 @@
       "bvnPlaceholder": "Geben Sie Ihre 11-stellige BVN ein",
       "saveButton": "Bankverbindung speichern",
       "saveSuccess": "Bankverbindung erfolgreich gespeichert.",
-      "saveError": "Bitte korrigieren Sie die folgenden Fehler:"
+      "saveError": "Bitte korrigieren Sie die folgenden Fehler:",
+      "notVerified": "Bitte verifizieren Sie Ihre Kontonummer vor dem Speichern."
+    }
+  },
+  "error": {
+    "checkout": {
+      "flutterwaveConfigurationError": "Flutterwave ist für diesen Shop nicht korrekt eingerichtet und kann derzeit nicht verwendet werden. Bitte wählen Sie eine andere Zahlungsart."
     }
   }
 }

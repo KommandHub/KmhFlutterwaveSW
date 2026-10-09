@@ -110,7 +110,7 @@ class TransactionTest extends TestCase
         // non-JSON ("Syntax error for URL").
         $this->httpClient->expects(static::once())
             ->method('get')
-            ->with('/refunds', ['id' => '12345'], null)
+            ->with('/refunds', ['id' => '12345', 'page' => 1], null)
             ->willReturn($this->respondWith(['status' => 'success', 'data' => []]));
 
         $this->transaction->refunds('12345');

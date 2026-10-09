@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Kommandhub\FlutterwaveSW\Tests\Unit\Webhook\Subscriber;
 
 use Kommandhub\FlutterwaveSW\Checkout\Payment\Service\RefundProcessor;
+use Kommandhub\FlutterwaveSW\Client\FlutterwaveClient;
+use Kommandhub\FlutterwaveSW\Client\Resource\Refund;
+use Kommandhub\FlutterwaveSW\Exception\FlutterwaveException;
 use Kommandhub\FlutterwaveSW\Logging\ConfigurableLogger;
 use Kommandhub\FlutterwaveSW\Service\OrderTransactionService;
 use Kommandhub\FlutterwaveSW\Webhook\Event\RefundCompletedEvent;
@@ -20,6 +23,7 @@ use Shopware\Core\Checkout\Order\Aggregate\OrderTransactionCapture\OrderTransact
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransactionCaptureRefund\OrderTransactionCaptureRefundEntity;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransactionCaptureRefund\OrderTransactionCaptureRefundStateHandler;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransactionCaptureRefund\OrderTransactionCaptureRefundStates;
+use Shopware\Core\Checkout\Payment\Cart\RefundPaymentTransactionStruct;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\System\StateMachine\Aggregation\StateMachineState\StateMachineStateEntity;
 
@@ -35,6 +39,14 @@ class RefundCompletedSubscriberTest extends TestCase
     private ConfigurableLogger&MockObject $logger;
     private RefundCompletedSubscriber $subscriber;
 
+    /**
+     * What Flutterwave's API reports for the refund; the subscriber must act on
+     * this, never on the webhook payload's own status.
+     *
+     * @var array<string, mixed>
+     */
+    private array $apiResponse = ['status' => 'success', 'data' => ['status' => 'completed']];
+
     protected function setUp(): void
     {
         $this->orderTransactionService = $this->createMock(OrderTransactionService::class);
@@ -43,8 +55,14 @@ class RefundCompletedSubscriberTest extends TestCase
         $this->deduplicator = $this->createMock(WebhookDeduplicator::class);
         $this->logger = $this->createMock(ConfigurableLogger::class);
 
+        $refundResource = $this->createMock(Refund::class);
+        $refundResource->method('fetch')->willReturnCallback(fn (): array => $this->apiResponse);
+        $flutterwave = $this->createMock(FlutterwaveClient::class);
+        $flutterwave->method('refunds')->willReturn($refundResource);
+
         $this->subscriber = new RefundCompletedSubscriber(
             $this->orderTransactionService,
+            $flutterwave,
             $this->refundStateHandler,
             $this->refundProcessor,
             $this->deduplicator,
@@ -93,7 +111,10 @@ class RefundCompletedSubscriberTest extends TestCase
             ->with('8612')
             ->willReturn($this->refund());
 
-        $this->refundProcessor->expects(static::once())->method('process');
+        $this->refundProcessor->expects(static::once())
+            ->method('process')
+            ->with(static::callback(static fn (RefundPaymentTransactionStruct $struct): bool => $struct->getRefundId() === 'refund-id'
+                && $struct->getOrderTransactionId() === 'order-transaction-id'));
         $this->deduplicator->expects(static::once())->method('markProcessed');
 
         ($this->subscriber)($this->event(['id' => 8612, 'TransactionId' => 5708, 'status' => 'completed']));
@@ -112,6 +133,7 @@ class RefundCompletedSubscriberTest extends TestCase
     #[DataProvider('successStatusProvider')]
     public function testSettledStatusesComplete(string $status): void
     {
+        $this->apiResponse = ['status' => 'success', 'data' => ['status' => $status]];
         $this->orderTransactionService->method('findRefundByExternalReference')->willReturn($this->refund());
 
         $this->refundProcessor->expects(static::once())->method('process');
@@ -121,6 +143,7 @@ class RefundCompletedSubscriberTest extends TestCase
 
     public function testFailedRefundFailsTheRecord(): void
     {
+        $this->apiResponse = ['status' => 'success', 'data' => ['status' => 'failed']];
         $this->orderTransactionService->method('findRefundByExternalReference')->willReturn($this->refund());
 
         $this->refundStateHandler->expects(static::once())->method('fail')->with('refund-id');
@@ -136,6 +159,7 @@ class RefundCompletedSubscriberTest extends TestCase
      */
     public function testNonFinalStatusLeavesTheRefundPendingAndUnmarked(): void
     {
+        $this->apiResponse = ['status' => 'success', 'data' => ['status' => 'pending']];
         $this->orderTransactionService->method('findRefundByExternalReference')->willReturn($this->refund());
 
         $this->refundStateHandler->expects(static::never())->method('complete');
@@ -143,6 +167,49 @@ class RefundCompletedSubscriberTest extends TestCase
         $this->deduplicator->expects(static::never())->method('markProcessed');
 
         ($this->subscriber)($this->event(['id' => 8612, 'status' => 'pending']));
+    }
+
+    /**
+     * `verif-hash` does not sign the body, so a replayed delivery can claim any
+     * status. Flutterwave's API is the only source of truth.
+     */
+    public function testPayloadStatusIsIgnoredInFavourOfTheApi(): void
+    {
+        $this->apiResponse = ['status' => 'success', 'data' => ['status' => 'failed']];
+        $this->orderTransactionService->method('findRefundByExternalReference')->willReturn($this->refund());
+
+        $this->refundProcessor->expects(static::never())->method('process');
+        $this->refundStateHandler->expects(static::once())->method('fail')->with('refund-id');
+
+        ($this->subscriber)($this->event(['id' => 8612, 'status' => 'completed']));
+    }
+
+    /**
+     * The sandbox answers `GET /refunds/{id}` with the bare refund object.
+     */
+    public function testUnwrappedApiResponseIsAccepted(): void
+    {
+        $this->apiResponse = ['id' => 8612, 'status' => 'completed'];
+        $this->orderTransactionService->method('findRefundByExternalReference')->willReturn($this->refund());
+
+        $this->refundProcessor->expects(static::once())->method('process');
+
+        ($this->subscriber)($this->event(['id' => 8612]));
+    }
+
+    /**
+     * A failed lookup must surface so the webhook answers 500 and Flutterwave
+     * redelivers, rather than acknowledging an event that was never applied.
+     */
+    public function testApiErrorThrowsSoTheWebhookIsRetried(): void
+    {
+        $this->apiResponse = ['status' => 'error', 'message' => 'boom', 'data' => null];
+        $this->orderTransactionService->method('findRefundByExternalReference')->willReturn($this->refund());
+
+        $this->deduplicator->expects(static::never())->method('markProcessed');
+        $this->expectException(FlutterwaveException::class);
+
+        ($this->subscriber)($this->event(['id' => 8612, 'status' => 'completed']));
     }
 
     public function testDuplicateDeliveryIsIgnored(): void

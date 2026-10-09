@@ -61,9 +61,9 @@
     "extra": {
         "shopware-plugin-class": "Kommandhub\\FlutterwaveSW\\KmhFlutterwaveSW",
         "label": {
-            "de-DE": "Flutterwave-Zahlung von Kommandhub",
-            "en-GB": "Flutterwave Payment by Kommandhub",
-            "fr-FR": "Paiement Flutterwave par Kommandhub"
+            "de-DE": "Flutterwave von Kommandhub",
+            "en-GB": "Flutterwave by Kommandhub",
+            "fr-FR": "Flutterwave par Kommandhub"
         },
         "description": {
             "de-DE": "Professionelle, unabhängige Shopware-6-Integration für das Flutterwave-Zahlungsgateway: sichere Zahlungen per Karte, Banküberweisung und Mobile Money in Afrika, inkl. Erstattungen.",

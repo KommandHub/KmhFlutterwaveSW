@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Kommandhub\FlutterwaveSW\Webhook\Service;
 
 use Kommandhub\FlutterwaveSW\Setting\Service\Config;
+use Shopware\Core\Framework\Context;
+use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
@@ -34,8 +37,10 @@ class WebhookSignatureValidator
 {
     public const SIGNATURE_HEADER = 'verif-hash';
 
-    public function __construct(private readonly Config $config)
-    {
+    public function __construct(
+        private readonly Config $config,
+        private readonly EntityRepository $salesChannelRepository
+    ) {
     }
 
     /**
@@ -43,9 +48,11 @@ class WebhookSignatureValidator
      */
     public function validate(Request $request, ?string $salesChannelId = null): void
     {
-        $secretHash = $this->config->getSecretHash($salesChannelId);
+        $secretHashes = $salesChannelId !== null
+            ? array_filter([$this->config->getSecretHash($salesChannelId)])
+            : $this->allSecretHashes();
 
-        if ($secretHash === '') {
+        if ($secretHashes === []) {
             // Fail closed. Without a configured hash every caller would be
             // accepted, so an unconfigured plugin must reject rather than trust.
             throw new AccessDeniedHttpException('Flutterwave webhook secret hash is not configured.');
@@ -59,8 +66,34 @@ class WebhookSignatureValidator
 
         // Constant-time compare: the header is a secret, so a timing-based
         // comparison would leak it byte by byte.
-        if (!hash_equals($secretHash, $signature)) {
-            throw new AccessDeniedHttpException('Invalid Flutterwave verif-hash header.');
+        foreach ($secretHashes as $secretHash) {
+            if (hash_equals($secretHash, $signature)) {
+                return;
+            }
         }
+
+        throw new AccessDeniedHttpException('Invalid Flutterwave verif-hash header.');
+    }
+
+    /**
+     * A webhook arrives before we know which sales channel it belongs to, and
+     * the hash may be configured per channel (e.g. one Flutterwave account per
+     * channel). Accept the global hash or any channel's own.
+     *
+     * @return array<int, string>
+     */
+    private function allSecretHashes(): array
+    {
+        $salesChannelIds = $this->salesChannelRepository
+            ->searchIds(new Criteria(), Context::createDefaultContext())
+            ->getIds();
+
+        $hashes = [$this->config->getSecretHash()];
+
+        foreach ($salesChannelIds as $id) {
+            $hashes[] = $this->config->getSecretHash($id);
+        }
+
+        return array_values(array_unique(array_filter($hashes)));
     }
 }

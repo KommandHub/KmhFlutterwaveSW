@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Kommandhub\FlutterwaveSW\Webhook\Subscriber;
 
 use Kommandhub\FlutterwaveSW\Checkout\Payment\Service\RefundProcessor;
+use Kommandhub\FlutterwaveSW\Client\FlutterwaveClient;
+use Kommandhub\FlutterwaveSW\Exception\FlutterwaveException;
 use Kommandhub\FlutterwaveSW\Logging\ConfigurableLogger;
 use Kommandhub\FlutterwaveSW\Service\OrderTransactionService;
+use Kommandhub\FlutterwaveSW\Util\FlutterwaveConstants;
 use Kommandhub\FlutterwaveSW\Webhook\Event\RefundCompletedEvent;
 use Kommandhub\FlutterwaveSW\Webhook\Service\WebhookDeduplicator;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransactionCaptureRefund\OrderTransactionCaptureRefundStateHandler;
@@ -28,16 +31,9 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
  */
 final readonly class RefundCompletedSubscriber
 {
-    /**
-     * Flutterwave marks a settled refund `completed`; some accounts report
-     * `successful`. Anything else that is not an explicit failure is still in
-     * flight and leaves the record pending.
-     */
-    private const SUCCESS_STATUSES = ['completed', 'successful'];
-    private const FAILURE_STATUSES = ['failed'];
-
     public function __construct(
         private OrderTransactionService $orderTransactionService,
+        private FlutterwaveClient $flutterwave,
         private OrderTransactionCaptureRefundStateHandler $refundStateHandler,
         private RefundProcessor $refundProcessor,
         private WebhookDeduplicator $deduplicator,
@@ -70,7 +66,6 @@ final readonly class RefundCompletedSubscriber
         }
 
         $transaction = $refund->getTransactionCapture()?->getTransaction();
-        $status = $event->getStatus();
 
         if ($transaction !== null) {
             $eventKey = $this->deduplicator->buildKey(RefundCompletedEvent::getWebhookName(), $flutterwaveRefundId);
@@ -112,11 +107,18 @@ final readonly class RefundCompletedSubscriber
             return;
         }
 
-        if (in_array($status, self::SUCCESS_STATUSES, true)) {
+        // The payload's own status is never trusted: `verif-hash` does not cover
+        // the body, so a replayed delivery could claim any outcome. Ask
+        // Flutterwave. A failed lookup throws, the webhook answers 500 and
+        // Flutterwave redelivers later.
+        $status = $this->fetchRefundStatus($flutterwaveRefundId, $transaction?->getOrder()?->getSalesChannelId());
+
+        if (in_array($status, FlutterwaveConstants::REFUND_SUCCESS_STATUSES, true)) {
             $this->refundProcessor->process(
+                // Shopware's signature is ($refundId, $orderTransactionId).
                 new RefundPaymentTransactionStruct(
-                    $transactionCapture->getOrderTransactionId(),
-                    $refund->getId()
+                    $refund->getId(),
+                    $transactionCapture->getOrderTransactionId()
                 ),
                 $context
             );
@@ -125,7 +127,7 @@ final readonly class RefundCompletedSubscriber
                 'flutterwaveRefundId' => $flutterwaveRefundId,
                 'refundId' => $refund->getId(),
             ]);
-        } elseif (in_array($status, self::FAILURE_STATUSES, true)) {
+        } elseif (in_array($status, FlutterwaveConstants::REFUND_FAILURE_STATUSES, true)) {
             $this->refundStateHandler->fail($refund->getId(), $context);
 
             $this->logger->warning('[Flutterwave] Refund failed via webhook.', [
@@ -151,5 +153,24 @@ final readonly class RefundCompletedSubscriber
                 $context
             );
         }
+    }
+
+    /**
+     * @throws FlutterwaveException
+     */
+    private function fetchRefundStatus(string $flutterwaveRefundId, ?string $salesChannelId): ?string
+    {
+        $response = $this->flutterwave->refunds()->fetch($flutterwaveRefundId, $salesChannelId);
+
+        if (($response['status'] ?? null) === 'error') {
+            throw new FlutterwaveException(sprintf('Could not fetch Flutterwave refund %s.', $flutterwaveRefundId));
+        }
+
+        // The documented envelope is `{status, data: {...}}`; the sandbox answers
+        // with the bare refund object. Accept both.
+        $data = is_array($response['data'] ?? null) ? $response['data'] : $response;
+        $status = $data['status'] ?? null;
+
+        return is_string($status) ? strtolower($status) : null;
     }
 }

@@ -51,6 +51,26 @@ class FlutterwaveConstants
     public const FIELD_PROCESSED_EVENTS = 'flutterwave_processed_events';
 
     /**
+     * Shopware's finalize URL for the current payment attempt, plus the nonce
+     * that unlocks it: `{nonce: string, url: string}`.
+     *
+     * Flutterwave does not reliably preserve a query string on `redirect_url`
+     * (its 3DS flow replaces it with `?response={json}`), which would drop
+     * Shopware's `_sw_payment_token`. So Flutterwave is given a clean plugin
+     * route instead, and the real finalize URL is kept here.
+     *
+     * @see \Kommandhub\FlutterwaveSW\Checkout\Payment\Controller\ReturnController
+     */
+    public const FIELD_RETURN = 'flutterwave_return';
+
+    /**
+     * Refund statuses Flutterwave uses for a settled refund; some accounts
+     * report `completed`, others `successful`.
+     */
+    public const REFUND_SUCCESS_STATUSES = ['completed', 'successful'];
+    public const REFUND_FAILURE_STATUSES = ['failed'];
+
+    /**
      * Flutterwave rejects refunds below these thresholds.
      *
      * @see https://developer.flutterwave.com/v3.0/docs/refunds

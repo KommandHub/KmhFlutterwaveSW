@@ -9,3 +9,7 @@ kmh_flutterwave_administration:
 kmh_flutterwave_webhook:
     resource: ../../Webhook/Controller/
     type: attribute
+
+kmh_flutterwave_payment_return:
+    resource: ../../Checkout/Payment/Controller/
+    type: attribute

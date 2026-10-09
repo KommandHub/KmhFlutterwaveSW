@@ -11,7 +11,11 @@ use Kommandhub\FlutterwaveSW\Logging\ConfigurableLogger;
 use Kommandhub\FlutterwaveSW\Service\PayloadBuilder;
 use Shopware\Core\Checkout\Payment\Cart\PaymentTransactionStruct;
 use Shopware\Core\Checkout\Payment\PaymentException;
+use Kommandhub\FlutterwaveSW\Util\FlutterwaveConstants;
+use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
 use Shopware\Core\Framework\Context;
+use Shopware\Core\Framework\Util\Random;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 readonly class PaymentProcessor
 {
@@ -19,7 +23,8 @@ readonly class PaymentProcessor
         private OrderTransactionService $orderTransactionService,
         private FlutterwaveClient $flutterwave,
         private PayloadBuilder $payloadBuilder,
-        private ConfigurableLogger $logger
+        private ConfigurableLogger $logger,
+        private UrlGeneratorInterface $urlGenerator
     ) {
     }
 
@@ -46,7 +51,12 @@ readonly class PaymentProcessor
                 throw new \RuntimeException('Sales channel ID is missing.');
             }
 
-            $payload = $this->payloadBuilder->build($orderTransaction, $transaction);
+            $redirectUrl = $this->prepareReturn($orderTransaction, $transaction, $context);
+
+            $payload = $this->payloadBuilder->build(
+                $orderTransaction,
+                new PaymentTransactionStruct($transaction->getOrderTransactionId(), $redirectUrl)
+            );
 
             $response = $this->flutterwave->transactions()->initialize($payload->toArray(), $salesChannelId);
 
@@ -72,6 +82,42 @@ readonly class PaymentProcessor
 
             throw PaymentException::asyncProcessInterrupted($orderTransaction->getId(), $e->getMessage());
         }
+    }
+
+    /**
+     * Stores Shopware's finalize URL on the transaction and returns the clean
+     * plugin URL Flutterwave should redirect to instead (see
+     * FlutterwaveConstants::FIELD_RETURN for why). The nonce makes that URL
+     * unguessable, so nobody but the paying customer can drive finalize — and
+     * in particular cannot cancel someone else's pending payment.
+     */
+    private function prepareReturn(
+        OrderTransactionEntity $orderTransaction,
+        PaymentTransactionStruct $transaction,
+        Context $context
+    ): string {
+        $finalizeUrl = $transaction->getReturnUrl();
+
+        if (!is_string($finalizeUrl) || $finalizeUrl === '') {
+            throw new \RuntimeException('Return URL is missing for the payment transaction.');
+        }
+
+        $nonce = Random::getAlphanumericString(32);
+
+        $this->orderTransactionService->update([
+            [
+                'id' => $orderTransaction->getId(),
+                'customFields' => array_merge($orderTransaction->getCustomFields() ?? [], [
+                    FlutterwaveConstants::FIELD_RETURN => ['nonce' => $nonce, 'url' => $finalizeUrl],
+                ]),
+            ],
+        ], $context);
+
+        return $this->urlGenerator->generate(
+            'frontend.flutterwave.return',
+            ['orderTransactionId' => $orderTransaction->getId(), 'nonce' => $nonce],
+            UrlGeneratorInterface::ABSOLUTE_URL
+        );
     }
 
     /**

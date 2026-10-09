@@ -7,10 +7,13 @@ namespace Kommandhub\FlutterwaveSW\Administration\Controller;
 use Kommandhub\FlutterwaveSW\Checkout\Payment\Service\FlutterwaveRefundLedgerInterface;
 use Kommandhub\FlutterwaveSW\Checkout\Payment\Service\RefundAmountCalculator;
 use Kommandhub\FlutterwaveSW\Checkout\Payment\Service\RefundEligibilityResolver;
+use Kommandhub\FlutterwaveSW\Checkout\Payment\Service\RefundProcessor;
 use Kommandhub\FlutterwaveSW\Client\FlutterwaveClient;
 use Kommandhub\FlutterwaveSW\Exception\RefundValidationException;
 use Kommandhub\FlutterwaveSW\Logging\ConfigurableLogger;
 use Kommandhub\FlutterwaveSW\Service\OrderTransactionService;
+use Kommandhub\FlutterwaveSW\Util\FlutterwaveConstants;
+use Shopware\Core\Checkout\Payment\Cart\RefundPaymentTransactionStruct;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\Routing\ApiRouteScope;
 use Shopware\Core\PlatformRequest;
@@ -65,7 +68,9 @@ use Symfony\Component\Routing\Attribute\Route;
  *    See {@see OrderTransactionService::createRefund()} for the full
  *    rationale.
  * 5. **Pending state handling** — the refund stays pending in Shopware until
- *    Flutterwave confirms the outcome. The admin transaction detail reads the
+ *    Flutterwave confirms the outcome — unless the refund response already
+ *    reports it `completed`, in which case it is completed on the spot via
+ *    {@see RefundProcessor}. The admin transaction detail reads the
  *    local capture/refund records straight from the Shopware repositories to
  *    show that progress, so this controller only needs to *create* the refund,
  *    not serve it back for display.
@@ -95,6 +100,7 @@ class RefundController extends AbstractController
         private readonly RefundEligibilityResolver $eligibilityResolver,
         private readonly FlutterwaveRefundLedgerInterface $refundLedger,
         private readonly RefundAmountCalculator $amountCalculator,
+        private readonly RefundProcessor $refundProcessor,
         private readonly ConfigurableLogger $logger
     ) {
     }
@@ -241,6 +247,27 @@ class RefundController extends AbstractController
 
             return new JsonResponse($response);
         } // @codeCoverageIgnoreEnd
+
+        // Flutterwave sometimes settles a refund synchronously (the sandbox
+        // always does). Complete it now rather than leaving it pending on a
+        // webhook that may never come; a later webhook finds it final and stops.
+        $data = is_array($response['data'] ?? null) ? $response['data'] : [];
+        $status = is_string($data['status'] ?? null) ? strtolower($data['status']) : null;
+
+        if (in_array($status, FlutterwaveConstants::REFUND_SUCCESS_STATUSES, true)) {
+            try {
+                $this->refundProcessor->process(new RefundPaymentTransactionStruct($refundId, $orderTransactionId), $context);
+
+                return new JsonResponse($response);
+            } catch (\Throwable $exception) {
+                $this->logger->error('[Flutterwave] Refund completed at Flutterwave but could not be completed locally.', [
+                    ConfigurableLogger::CONTEXT_SALES_CHANNEL_ID => $salesChannelId,
+                    'orderTransactionId' => $orderTransactionId,
+                    'refundId' => $refundId,
+                    'exception' => $exception,
+                ]);
+            }
+        }
 
         $this->logger->info('[Flutterwave] Refund requested; awaiting refund.completed webhook.', [
             ConfigurableLogger::CONTEXT_SALES_CHANNEL_ID => $salesChannelId,

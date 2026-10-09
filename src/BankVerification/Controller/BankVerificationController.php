@@ -11,6 +11,8 @@ use Kommandhub\FlutterwaveSW\Setting\Service\Config;
 use Kommandhub\FlutterwaveSW\Util\FlutterwaveConstants;
 use Shopware\Core\Checkout\Customer\CustomerEntity;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
+use Shopware\Core\Framework\RateLimiter\Exception\RateLimitExceededException;
+use Shopware\Core\Framework\RateLimiter\RateLimiter;
 use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Core\Framework\Validation\DataValidator;
 use Shopware\Core\PlatformRequest;
@@ -36,12 +38,22 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route(defaults: ['_routeScope' => ['storefront']])]
 class BankVerificationController extends StorefrontController
 {
+    public const RATE_LIMIT_VERIFY = 'kmh_flutterwave_bank_verify';
+
+    /**
+     * The last account Flutterwave resolved for this session. Save only accepts
+     * this account, with this name — otherwise a customer could skip
+     * verification and store any name against any account number.
+     */
+    public const SESSION_VERIFIED_ACCOUNT = 'kmh_flutterwave_verified_account';
+
     public function __construct(
         private readonly FlutterwaveClient $flutterwave,
         private readonly Config $config,
         private readonly EntityRepository $customerRepository,
         private readonly BankValidationFactory $bankValidationFactory,
         private readonly DataValidator $validator,
+        private readonly RateLimiter $rateLimiter,
         private readonly ConfigurableLogger $logger
     ) {
     }
@@ -95,6 +107,12 @@ class BankVerificationController extends StorefrontController
             return new JsonResponse(['status' => false, 'message' => 'Feature disabled'], Response::HTTP_NOT_FOUND);
         }
 
+        try {
+            $this->rateLimiter->ensureAccepted(self::RATE_LIMIT_VERIFY, (string)$context->getCustomerId());
+        } catch (RateLimitExceededException) {
+            return new JsonResponse(['status' => false, 'message' => 'Too many verification attempts. Please try again later.'], Response::HTTP_TOO_MANY_REQUESTS);
+        }
+
         $accountNumber = trim((string)$request->request->get('account_number'));
         $bankCode = trim((string)$request->request->get('bank_code'));
 
@@ -121,6 +139,12 @@ class BankVerificationController extends StorefrontController
                 ], Response::HTTP_BAD_REQUEST);
             }
 
+            $request->getSession()->set(self::SESSION_VERIFIED_ACCOUNT, [
+                'accountNumber' => $accountNumber,
+                'bankCode' => $bankCode,
+                'accountName' => $accountName,
+            ]);
+
             return new JsonResponse(['status' => true, 'data' => ['account_name' => $accountName]]);
         } catch (\Throwable $e) {
             // Never log the account number — it is customer financial data.
@@ -143,7 +167,7 @@ class BankVerificationController extends StorefrontController
         defaults: [PlatformRequest::ATTRIBUTE_LOGIN_REQUIRED => true],
         methods: ['POST']
     )]
-    public function saveBank(RequestDataBag $data, SalesChannelContext $context, CustomerEntity $customer): Response
+    public function saveBank(Request $request, RequestDataBag $data, SalesChannelContext $context, CustomerEntity $customer): Response
     {
         if (!$this->isBankDataCollectionEnabled($context->getSalesChannelId())) {
             throw $this->createNotFoundException();
@@ -153,7 +177,7 @@ class BankVerificationController extends StorefrontController
         $violations = $this->validator->getViolations($data->all(), $validation);
 
         if ($violations->count() > 0) {
-            $this->addFlash(StorefrontController::DANGER, $this->trans('kommandhub-flutterwave.bank.saveError'));
+            $this->addFlash(StorefrontController::DANGER, $this->trans('kmh-flutterwave.bank.saveError'));
 
             foreach ($violations as $violation) {
                 $this->addFlash(StorefrontController::DANGER, $violation->getMessage());
@@ -162,11 +186,23 @@ class BankVerificationController extends StorefrontController
             return $this->redirectToRoute('frontend.account.profile.page');
         }
 
+        $verified = $request->getSession()->get(self::SESSION_VERIFIED_ACCOUNT);
+
+        if (!is_array($verified)
+            || ($verified['accountNumber'] ?? null) !== trim($data->getString('accountNumber'))
+            || ($verified['bankCode'] ?? null) !== trim($data->getString('bankCode'))
+        ) {
+            $this->addFlash(StorefrontController::DANGER, $this->trans('kmh-flutterwave.bank.notVerified'));
+
+            return $this->redirectToRoute('frontend.account.profile.page');
+        }
+
+        // The name comes from Flutterwave's resolution, not from the form.
         $customFields = [
             FlutterwaveConstants::CUSTOMER_FIELD_BANK_NAME => $data->get('bankName'),
-            FlutterwaveConstants::CUSTOMER_FIELD_BANK_CODE => $data->get('bankCode'),
-            FlutterwaveConstants::CUSTOMER_FIELD_ACCOUNT_NUMBER => $data->get('accountNumber'),
-            FlutterwaveConstants::CUSTOMER_FIELD_ACCOUNT_NAME => $data->get('accountName'),
+            FlutterwaveConstants::CUSTOMER_FIELD_BANK_CODE => $verified['bankCode'],
+            FlutterwaveConstants::CUSTOMER_FIELD_ACCOUNT_NUMBER => $verified['accountNumber'],
+            FlutterwaveConstants::CUSTOMER_FIELD_ACCOUNT_NAME => $verified['accountName'],
         ];
 
         $bvn = $data->get('bvn');
@@ -182,7 +218,9 @@ class BankVerificationController extends StorefrontController
             ],
         ], $context->getContext());
 
-        $this->addFlash(StorefrontController::SUCCESS, $this->trans('kommandhub-flutterwave.bank.saveSuccess'));
+        $request->getSession()->remove(self::SESSION_VERIFIED_ACCOUNT);
+
+        $this->addFlash(StorefrontController::SUCCESS, $this->trans('kmh-flutterwave.bank.saveSuccess'));
 
         return $this->redirectToRoute('frontend.account.profile.page');
     }

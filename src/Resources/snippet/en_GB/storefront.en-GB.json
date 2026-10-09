@@ -12,7 +12,13 @@
       "bvnPlaceholder": "Enter your 11-digit BVN",
       "saveButton": "Save Bank Details",
       "saveSuccess": "Bank details saved successfully.",
-      "saveError": "Please correct the following errors:"
+      "saveError": "Please correct the following errors:",
+      "notVerified": "Please verify your account number before saving."
+    }
+  },
+  "error": {
+    "checkout": {
+      "flutterwaveConfigurationError": "Flutterwave is not configured correctly for this shop, so it cannot be used right now. Please choose another payment method."
     }
   }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kommandhub\FlutterwaveSW\Checkout\Payment\Service;
 
 use Kommandhub\FlutterwaveSW\Client\FlutterwaveClient;
+use Kommandhub\FlutterwaveSW\Exception\FlutterwaveException;
 use Kommandhub\FlutterwaveSW\Util\FlutterwaveCurrencyHelper;
 
 /**
@@ -33,40 +34,69 @@ final readonly class FlutterwaveRefundLedger implements FlutterwaveRefundLedgerI
     }
 
     /**
+     * Upper bound on refund-list pages walked per lookup.
+     */
+    private const MAX_PAGES = 50;
+
+    /**
      * {@inheritDoc}
      *
      * Flutterwave has no endpoint that returns only a single transaction's
      * refunds: `GET /refunds?id=` is documented to filter by transaction id,
-     * but in practice the account-wide list comes back unfiltered. Relying on
-     * the server filter alone leaked every account refund into the order
-     * view — and, worse, into the over-refund guard, where foreign refunds
-     * would wrongly shrink the refundable balance.
+     * but in practice every filter is ignored and the account-wide list comes
+     * back, paginated.
      *
-     * So the list is always filtered client-side on each refund's `tx_id`,
-     * which the refund object carries and which equals our stored
-     * transaction id. This is authoritative regardless of whether the server
-     * honours the query param.
+     * Refund objects do not carry the public transaction id either: their
+     * `transaction_id` is an internal Flutterwave id. What they do carry is the
+     * parent charge's `flw_ref`, so the transaction is verified once to learn
+     * its `flw_ref` and every page of the list is filtered on that.
+     *
+     * @throws FlutterwaveException When the transaction or a refund page cannot be loaded.
      */
     public function refundsForTransaction(string $flutterwaveTransactionId, ?string $salesChannelId): array
     {
-        $response = $this->flutterwave->transactions()->refunds($flutterwaveTransactionId, $salesChannelId);
-        $refunds = is_array($response['data'] ?? null) ? $response['data'] : [];
+        $flwRef = $this->flwRefFor($flutterwaveTransactionId, $salesChannelId);
 
         $matching = [];
 
-        foreach ($refunds as $refund) {
-            if (!is_array($refund)) {
-                continue;
+        // ponytail: walks the whole account-wide list, capped at MAX_PAGES; if
+        // accounts outgrow that, persist the refunded total locally instead.
+        for ($page = 1; $page <= self::MAX_PAGES; ++$page) {
+            $response = $this->flutterwave->transactions()->refunds($flutterwaveTransactionId, $salesChannelId, $page);
+            $refunds = is_array($response['data'] ?? null) ? $response['data'] : [];
+
+            foreach ($refunds as $refund) {
+                if (is_array($refund) && ($refund['flw_ref'] ?? null) === $flwRef) {
+                    $matching[] = $refund;
+                }
             }
 
-            $txId = $refund['tx_id'] ?? null;
+            $meta = is_array($response['meta'] ?? null) ? $response['meta'] : [];
+            $pageInfo = is_array($meta['page_info'] ?? null) ? $meta['page_info'] : [];
+            $totalPages = $pageInfo['total_pages'] ?? null;
 
-            if (is_numeric($txId) && (string)$txId === $flutterwaveTransactionId) {
-                $matching[] = $refund;
+            if ($refunds === [] || !is_numeric($totalPages) || $page >= (int)$totalPages) {
+                break;
             }
         }
 
         return $matching;
+    }
+
+    /**
+     * @throws FlutterwaveException When the transaction cannot be verified or has no flw_ref.
+     */
+    private function flwRefFor(string $flutterwaveTransactionId, ?string $salesChannelId): string
+    {
+        $response = $this->flutterwave->transactions()->verify($flutterwaveTransactionId, $salesChannelId);
+        $data = is_array($response['data'] ?? null) ? $response['data'] : [];
+        $flwRef = $data['flw_ref'] ?? null;
+
+        if (!is_string($flwRef) || $flwRef === '') {
+            throw new FlutterwaveException(sprintf('Flutterwave transaction %s has no flw_ref.', $flutterwaveTransactionId));
+        }
+
+        return $flwRef;
     }
 
     public function alreadyRefundedMinor(

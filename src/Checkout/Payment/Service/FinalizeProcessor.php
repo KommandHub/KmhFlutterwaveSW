@@ -11,6 +11,7 @@ use Kommandhub\FlutterwaveSW\Client\FlutterwaveClient;
 use Kommandhub\FlutterwaveSW\Logging\ConfigurableLogger;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler;
+use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStates;
 use Shopware\Core\Checkout\Payment\Cart\PaymentTransactionStruct;
 use Shopware\Core\Checkout\Payment\PaymentException;
 use Shopware\Core\Framework\Context;
@@ -18,6 +19,12 @@ use Symfony\Component\HttpFoundation\Request;
 
 readonly class FinalizeProcessor
 {
+    private const SETTLED_STATES = [
+        OrderTransactionStates::STATE_PAID,
+        OrderTransactionStates::STATE_PARTIALLY_REFUNDED,
+        OrderTransactionStates::STATE_REFUNDED,
+    ];
+
     public function __construct(
         private OrderTransactionService $orderTransactionService,
         private FlutterwaveClient $flutterwave,
@@ -113,6 +120,19 @@ readonly class FinalizeProcessor
      */
     private function validateTransactionData(OrderTransactionEntity $orderTransaction, array $data, ?string $salesChannelId): void
     {
+        // Bind the verified payment to THIS order transaction. Amount and currency
+        // alone are not enough: the customer controls `transaction_id` on the
+        // return URL, so without this check any earlier successful payment of
+        // the same total could be replayed to settle a different order.
+        if (($data['tx_ref'] ?? null) !== $orderTransaction->getId()) {
+            $this->logger->error('[Flutterwave] Transaction reference mismatch; refusing to mark the order paid.', $this->logContext($salesChannelId, [
+                'orderTransactionId' => $orderTransaction->getId(),
+                'receivedReference' => $data['tx_ref'] ?? null,
+            ]));
+
+            throw new \RuntimeException('Flutterwave verification failed: Transaction reference mismatch.');
+        }
+
         $expectedAmount = $orderTransaction->getAmount()->getTotalPrice();
         $expectedCurrency = $orderTransaction->getOrder()?->getCurrency()?->getIsoCode();
 
@@ -173,6 +193,18 @@ readonly class FinalizeProcessor
     private function updateTransactionState(OrderTransactionEntity $orderTransaction, string $status, Context $context, ?string $salesChannelId): void
     {
         if ($status === 'successful') {
+            // The webhook and the customer's redirect race; whichever lands second
+            // finds the transaction already settled. Shopware has no paid -> paid
+            // transition, so re-applying it would throw and show the customer a
+            // failure page for a payment that succeeded.
+            if (in_array($orderTransaction->getStateMachineState()?->getTechnicalName(), self::SETTLED_STATES, true)) {
+                $this->logger->info('[Flutterwave] Payment already settled; nothing to do.', $this->logContext($salesChannelId, [
+                    'orderTransactionId' => $orderTransaction->getId(),
+                ]));
+
+                return;
+            }
+
             $this->logger->info('[Flutterwave] Payment successful.', $this->logContext($salesChannelId, [
                 'orderTransactionId' => $orderTransaction->getId(),
             ]));

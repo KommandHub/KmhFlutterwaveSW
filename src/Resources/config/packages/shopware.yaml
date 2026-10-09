@@ -1,0 +1,11 @@
+# Caps how often one customer can resolve bank account numbers. Each call spends
+# the merchant's Flutterwave quota and returns an account holder's name, so an
+# uncapped endpoint is a free name-lookup service for any logged-in customer.
+shopware:
+    api:
+        rate_limiter:
+            kmh_flutterwave_bank_verify:
+                enabled: true
+                policy: 'sliding_window'
+                limit: 10
+                interval: '60 minutes'
