@@ -45,3 +45,5 @@ Thumbs.db
 *.log
 *.tmp
 *.cache
+# Stray Vite manifest Shopware's admin build writes for the core storefront bundle
+/src/Storefront/

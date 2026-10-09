@@ -415,6 +415,31 @@ class RefundControllerTest extends TestCase
         static::assertSame(200, $response->getStatusCode());
     }
 
+    /**
+     * Money has already moved at Flutterwave; a local failure must not tell
+     * the merchant the refund failed. The webhook completes it later.
+     */
+    public function testLocalCompletionFailureStillReportsSuccess(): void
+    {
+        $this->orderTransactionService->method('getForRefund')->willReturn($this->transaction());
+        $this->orderTransactionService->method('createRefund')->willReturn('local-refund-id');
+        $this->config->method('getBool')->willReturn(true);
+        $this->allowLowMinimum();
+        $this->transactionResource->method('refunds')->willReturn(['status' => 'success', 'data' => []]);
+        $this->transactionResource->method('refund')
+            ->willReturn(['status' => 'success', 'data' => ['id' => 7, 'status' => 'completed']]);
+        $this->refundProcessor->method('process')->willThrowException(new \RuntimeException('state machine'));
+
+        $this->logger->expects(static::once())->method('error');
+
+        $response = $this->controller()->refund(
+            $this->request(['orderTransactionId' => 'order-transaction-id', 'amount' => '10']),
+            $this->context()
+        );
+
+        static::assertSame(200, $response->getStatusCode());
+    }
+
     public function testPendingRefundIsLeftForTheWebhook(): void
     {
         $this->orderTransactionService->method('getForRefund')->willReturn($this->transaction());

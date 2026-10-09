@@ -172,4 +172,24 @@ class PaymentProcessorTest extends TestCase
 
         $this->processor->process($transactionStruct, $context);
     }
+
+    /**
+     * Without Shopware's finalize URL the customer would be stranded on
+     * Flutterwave after paying, so this fails before anything is initialized.
+     */
+    public function testProcessFailsWhenReturnUrlMissing(): void
+    {
+        $order = new OrderEntity();
+        $order->setSalesChannelId('sales-channel-1');
+        $orderTransaction = new OrderTransactionEntity();
+        $orderTransaction->setId('transaction-1');
+        $orderTransaction->setOrder($order);
+        $this->orderTransactionService->method('getOrderTransaction')->willReturn($orderTransaction);
+
+        $this->orderTransactionService->expects(static::never())->method('update');
+        $this->expectException(PaymentException::class);
+        $this->expectExceptionMessage('Return URL is missing for the payment transaction.');
+
+        $this->processor->process(new PaymentTransactionStruct('transaction-1'), Context::createDefaultContext());
+    }
 }

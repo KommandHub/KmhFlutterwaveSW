@@ -15,7 +15,9 @@ use Shopware\Core\Framework\Plugin\Context\InstallContext;
 use Shopware\Core\Framework\Plugin\Context\UninstallContext;
 use Shopware\Core\Framework\Plugin\Context\UpdateContext;
 use Shopware\Core\Framework\Plugin\Util\PluginIdProvider;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Extension\Extension;
 
 class KmhFlutterwaveSWTest extends TestCase
 {
@@ -219,5 +221,35 @@ class KmhFlutterwaveSWTest extends TestCase
         $this->expectExceptionMessage('Typed property Symfony\Component\HttpKernel\Bundle\Bundle::$container must not be accessed before initialization');
 
         $plugin->uninstall($uninstallContext);
+    }
+
+    /**
+     * Shopware only loads a bundle's Resources/config/packages when the bundle
+     * opts in from build(); without it the bank-verification rate limiter is
+     * silently never registered.
+     */
+    public function testBuildLoadsThePackagesConfigWithTheRateLimiter(): void
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('kernel.environment', 'prod');
+        $container->registerExtension(new class() extends Extension {
+            public function getAlias(): string
+            {
+                return 'shopware';
+            }
+
+            public function load(array $configs, ContainerBuilder $container): void
+            {
+            }
+        });
+
+        (new KmhFlutterwaveSW(true, dirname(__DIR__, 2)))->build($container);
+
+        $limiters = array_merge(...array_map(
+            static fn (array $config): array => $config['api']['rate_limiter'] ?? [],
+            $container->getExtensionConfig('shopware')
+        ));
+
+        static::assertArrayHasKey('kmh_flutterwave_bank_verify', $limiters);
     }
 }

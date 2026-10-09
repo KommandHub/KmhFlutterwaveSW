@@ -78,6 +78,13 @@ class ReturnControllerTest extends TestCase
         static::assertSame(self::FINALIZE_URL . '&status=cancelled', $response->getTargetUrl());
     }
 
+    public function testCallbackWithoutParametersForwardsTheBareFinalizeUrl(): void
+    {
+        $response = $this->controller->return(self::TRANSACTION_ID, self::NONCE, new Request(), Context::createDefaultContext());
+
+        static::assertSame(self::FINALIZE_URL, $response->getTargetUrl());
+    }
+
     /**
      * Without the nonce, anyone who learned a transaction id could drive
      * finalize — e.g. cancel someone else's pending payment.

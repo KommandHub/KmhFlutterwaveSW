@@ -6,7 +6,7 @@
 
 # Flutterwave Payment for Shopware 6
 
-[![Shopware Plugin CI](https://github.com/KommandHub/KommandhubFlutterwaveSW/actions/workflows/php.yml/badge.svg)](https://github.com/KommandHub/KommandhubFlutterwaveSW/actions/workflows/php.yml)
+[![Shopware Plugin CI](https://github.com/KommandHub/KmhFlutterwaveSW/actions/workflows/php.yml/badge.svg)](https://github.com/KommandHub/KmhFlutterwaveSW/actions/workflows/php.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Shopware](https://img.shields.io/badge/Shopware-6.6%20%7C%206.7-blue.svg)](https://shopware.com)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777bb4.svg)](https://www.php.net)
@@ -64,9 +64,9 @@ This document is the technical reference for developers **contributing to** the 
 The plugin adds Flutterwave as a native Shopware 6 payment method. It handles the full payment lifecycle:
 
 1. **Initialize** a Flutterwave transaction and redirect the customer to Flutterwave's hosted checkout.
-2. **Finalize** the payment on return by verifying the transaction against the Flutterwave API — matching **status, amount, and currency** before the order is marked paid.
+2. **Finalize** the payment on return by verifying the transaction against the Flutterwave API — matching **status, amount, currency, and `tx_ref`** before the order is marked paid.
 3. **Reconcile** payments asynchronously via webhooks (for cases where the customer never returns from the redirect).
-4. **Refund** orders (full or partial) from the Administration, guarded by a dedicated permission and a server-side over-refund check. Refunds are asynchronous at Flutterwave (typically 3–15 working days), so the local record stays pending until a `refund.completed` webhook confirms the outcome.
+4. **Refund** orders (full or partial) from the Administration, guarded by a dedicated permission and a server-side over-refund check. Refunds are asynchronous at Flutterwave (typically 3–15 working days), so the local record stays pending until a `refund.completed` webhook confirms the outcome — unless Flutterwave already reports the refund completed in its response, in which case it is completed immediately.
 
 It also provides customer bank-account verification (via Flutterwave's account-resolution endpoint, with an optional BVN field) and correct money handling across the currencies Flutterwave supports, including zero-decimal (e.g. RWF, UGX) and three-decimal (e.g. KWD) currencies.
 
@@ -79,7 +79,7 @@ It also provides customer bank-account verification (via Flutterwave's account-r
 ## Key Features
 
 - Native Shopware 6 payment method with Flutterwave hosted checkout.
-- Payment verification that validates **status + amount + currency** (the return query string is attacker-controllable, so all three are re-checked against the API, never trusted from the redirect).
+- Payment verification that validates **status + amount + currency + `tx_ref`** (the return query string is attacker-controllable, so everything is re-checked against the API, never trusted from the redirect; the `tx_ref` check stops an earlier payment being replayed onto a different order).
 - Asynchronous reconciliation through webhooks: `charge.completed`, `refund.completed`. Webhook payloads are never trusted directly — every handler re-verifies against the Flutterwave API before mutating an order (see [Security Considerations](#security-considerations) for why this matters more here than for HMAC-signed providers).
 - Full and partial refunds from the order detail page, with a **server-side over-refund cap** computed from Flutterwave's own live refund history — not a locally mirrored ledger.
 - A dedicated **`flutterwave.refund`** admin permission, assignable to roles (depends on the order editor permission).
@@ -124,13 +124,22 @@ Customer selects Flutterwave
 PaymentProcessor.process()  ──►  Flutterwave transaction initialized, tx_ref = order transaction id
         │
         ▼
-Redirect to Flutterwave hosted checkout
+Redirect to Flutterwave hosted checkout (redirect_url = /flutterwave/return/{id}/{nonce})
         │
         ▼
-Customer pays ──► redirect back ──► FinalizeProcessor.process()
-        │                                   verify(transaction_id): status AND amount AND currency match
+Customer pays ──► ReturnController ──► Shopware finalize URL ──► FinalizeProcessor.process()
+        │          (looks up the stored     (carries _sw_payment_token)    verify(transaction_id): status,
+        │           finalize URL by nonce,                                  amount, currency AND tx_ref match
+        │           normalises ?status=… and
+        │           3DS ?response={json})
         ▼
 Order transaction marked "paid"
+
+Flutterwave is never given Shopware's finalize URL directly: its card 3-D Secure flow
+replaces the redirect's query string with `?response={json}`, which would drop
+`_sw_payment_token`. PaymentProcessor stores the finalize URL on the transaction
+(custom field `flutterwave_return`) next to a random nonce, and Flutterwave gets a
+clean plugin route instead.
 
 If the customer never returns, the `charge.completed` webhook reconciles the order
 using tx_ref (idempotent: it no-ops if already paid, and ignores a tx_ref that
@@ -149,12 +158,14 @@ RefundController.refund()  ──►  server gate: _acl flutterwave.refund, min 
 Flutterwave acknowledges the refund request (money moves asynchronously, 3-15 working days)
         │
         ▼
-Local refund created in its PENDING state, stamped with Flutterwave's refund id
+Local refund created in its PENDING state (completed right away if Flutterwave's
+response already reports it completed — the sandbox always does), stamped with Flutterwave's refund id
 as `externalReference` — the correlation key the webhook looks it up by
         │
         ▼
 `refund.completed` webhook  ──►  RefundCompletedSubscriber finds the pending
-        refund by externalReference, re-verifies the status is genuinely final,
+        refund by externalReference, fetches the refund's real status from the
+        Flutterwave API (the payload's status is never trusted),
         and only then completes or fails it (idempotent against redelivery and
         against a refund already in a final state)
 ```
@@ -181,9 +192,9 @@ as `externalReference` — the correlation key the webhook looks it up by
 ## Directory Structure
 
 ```text
-KommandhubFlutterwaveSW/
+KmhFlutterwaveSW/
 ├── src/
-│   ├── KommandhubFlutterwaveSW.php     # Plugin base class (lifecycle hooks)
+│   ├── KmhFlutterwaveSW.php     # Plugin base class (lifecycle hooks)
 │   ├── Administration/
 │   │   └── Controller/RefundController.php  # Admin refund API + refund-history endpoint
 │   ├── BankVerification/
@@ -257,7 +268,7 @@ KommandhubFlutterwaveSW/
 ```bash
 composer require kommandhub/flutterwave-sw
 bin/console plugin:refresh
-bin/console plugin:install --activate KommandhubFlutterwaveSW
+bin/console plugin:install --activate KmhFlutterwaveSW
 bin/console cache:clear
 ```
 
@@ -277,8 +288,8 @@ The repository ships a Docker Compose stack based on [`dockware`](https://dockwa
 
 ```bash
 # 1. Clone the repository
-git clone <repository-url> KommandhubFlutterwaveSW
-cd KommandhubFlutterwaveSW
+git clone <repository-url> KmhFlutterwaveSW
+cd KmhFlutterwaveSW
 
 # 2. Start the stack (builds the container and prepares the shop)
 make up
@@ -286,12 +297,12 @@ make up
 # 3. Install and activate the plugin inside the container
 make shell
 bin/console plugin:refresh
-bin/console plugin:install --activate KommandhubFlutterwaveSW
+bin/console plugin:install --activate KmhFlutterwaveSW
 bin/console cache:clear
 exit
 ```
 
-The plugin directory is mounted at `/var/www/html/custom/static-plugins/KommandhubFlutterwaveSW`; `.git/`, `node_modules/`, and `vendor/` are excluded from the mount. Changes to source files on the host are reflected immediately in the container.
+The plugin directory is mounted at `/var/www/html/custom/static-plugins/KmhFlutterwaveSW`; `.git/`, `node_modules/`, and `vendor/` are excluded from the mount. Changes to source files on the host are reflected immediately in the container.
 
 Default dockware credentials:
 
@@ -357,14 +368,14 @@ make cs-fix && make analyse && make test
 
 ## Configuration Options
 
-Configure the plugin under **Extensions → My Extensions → Flutterwave → Configuration**. Options are stored in Shopware's system configuration under the `KommandhubFlutterwaveSW.config.*` domain and read through `Setting\Service\Config`.
+Configure the plugin under **Extensions → My Extensions → Flutterwave → Configuration**. Options are stored in Shopware's system configuration under the `KmhFlutterwaveSW.config.*` domain and read through `Setting\Service\Config`.
 
 | Key | Type | Purpose |
 | --- | --- | --- |
 | `apiPublicKey` | password | Live public key (`FLWPUBK-...`) |
 | `apiSecretKey` | password | Live secret key (`FLWSECK-...`) |
 | `secretHash` | password | Live webhook secret hash (see [Security Considerations](#security-considerations)) |
-| `enableSandbox` | bool | Use sandbox/test credentials instead of live |
+| `enableSandbox` | bool | Use sandbox/test credentials instead of live. Must match the key type: checkout is blocked if a test key is used in live mode or a live key in sandbox mode |
 | `apiPublicKeySandbox` | password | Test public key (`FLWPUBK_TEST-...`) |
 | `apiSecretKeySandbox` | password | Test secret key (`FLWSECK_TEST-...`) |
 | `secretHashSandbox` | password | Sandbox webhook secret hash — Flutterwave allows a different hash per environment |
@@ -433,7 +444,7 @@ Pure business logic in the admin (`Resources/app/administration/src/service/refu
 | PHP-CS-Fixer | `make cs` / `make cs-fix` | `.php-cs-fixer.dist.php` |
 | PHPUnit | `make test` | `phpunit.dist.xml` |
 
-CI enforces PHP lint, PHPStan, code style, and unit tests. It does not currently enforce a coverage threshold; the plugin is at 100% line/method/class coverage locally as of `0.9.0-beta.1`, verified with `make test-coverage`. Kernel-dependent (integration) tests are excluded from CI.
+CI enforces PHP lint, PHPStan, code style, and unit tests. It does not currently enforce a coverage threshold; the plugin is at 100% line/method/class coverage locally as of `0.9.0-beta.2`, verified with `make test-coverage`. Kernel-dependent (integration) tests are excluded from CI.
 
 ---
 
@@ -463,9 +474,12 @@ Logging goes through `Logging\ConfigurableLogger`, wired to the `flutterwave_cha
 ## Security Considerations
 
 - **Webhook authenticity — read this carefully, it differs from most providers.** Flutterwave does **not** sign the webhook payload. It echoes back the static secret hash you configure in its dashboard, verbatim, in a `verif-hash` header. `WebhookSignatureValidator` compares it with `hash_equals` (timing-safe) and rejects a missing or mismatched header, or an unconfigured hash. A valid header proves only that the *sender* knows the shared secret — it proves nothing about the body, since nothing binds the hash to the payload's contents. **Every webhook handler therefore treats the payload as untrusted input**: it extracts only an identifier (a transaction id or refund id) and re-fetches the authoritative state from the Flutterwave API before making any change. This is a deliberate, load-bearing design decision, not an oversight — do not "simplify" a handler to trust payload fields like `status` directly.
-- **Payment verification**: an order is marked paid only when the verified transaction matches **status AND amount AND currency**. The return query string comes from an attacker-controllable redirect, so it is never trusted on its own.
+- **Payment verification**: an order is marked paid only when the verified transaction matches **status AND amount AND currency AND `tx_ref`**. The return query string comes from an attacker-controllable redirect, so it is never trusted on its own; without the `tx_ref` check, a customer could append the id of an earlier successful payment of the same amount to a new order's return URL.
+- **Return URL**: Flutterwave redirects to `/flutterwave/return/{orderTransactionId}/{nonce}`. The nonce is random per payment attempt and compared timing-safely, so a third party who learns a transaction id cannot drive finalize (for example, to cancel someone else's pending payment).
+- **Key/mode mismatch guard**: checkout is blocked when the secret key does not match the mode — a `FLWSECK_TEST-` key with sandbox off would mark orders paid for mock payments; a live key with sandbox on would take real money while the merchant believes they are testing.
 - **Refund authorization**: the refund endpoint requires the dedicated `flutterwave.refund` privilege (route `_acl`), and the admin action is gated by the same permission.
 - **Over-refund protection**: the server recomputes the refundable balance from Flutterwave's own live refund history (not a locally mirrored ledger) and rejects amounts above it and below the configured minimum. The client-side bound is a UX aid only.
+- **Bank verification**: account resolution is rate limited per customer (`kmh_flutterwave_bank_verify`, 10 per hour, shipped in `Resources/config/packages/shopware.yaml`), and saving only accepts the account Flutterwave resolved in the same session, storing Flutterwave's account name rather than the submitted one.
 - **Refund idempotency**: `refund.completed` deliveries are matched to a pending refund by `externalReference` (Flutterwave's refund id) and are safe to redeliver — a refund already in a final state, or an event already processed, is a no-op rather than a duplicate transition.
 - **Secrets**: API keys and the webhook secret hash live in Shopware's system configuration, not in the codebase or in URLs, and are never written to logs.
 - **BVN handling**: collected only when explicitly enabled (off by default), and shown to the customer masked to its last 4 digits wherever it is displayed. It is stored as entered in the customer's custom fields — there is no field-level encryption at rest, a known consideration tracked for `1.0.0`.
@@ -488,7 +502,7 @@ Logging goes through `Logging\ConfigurableLogger`, wired to the `flutterwave_cha
 2. Run:
    ```bash
    bin/console plugin:refresh
-   bin/console plugin:update KommandhubFlutterwaveSW
+   bin/console plugin:update KmhFlutterwaveSW
    bin/console cache:clear
    ```
 3. Ensure compiled Administration and Storefront assets are built and committed as part of the release.
@@ -539,6 +553,12 @@ A single plugin release supports both Shopware 6.6 and 6.7 (`shopware/core: ~6.6
 **Order status not updating after payment**
 - Confirm the webhook endpoint is reachable from Flutterwave and the secret hash matches the mode (test vs live) exactly.
 - Check `var/log/` for verification or signature errors.
+
+**"Flutterwave is not configured correctly for this shop" at checkout**
+- The secret key for the active mode is missing, or does not match the mode: sandbox mode needs a `FLWSECK_TEST-…` key in the sandbox fields, live mode a live `FLWSECK-…` key in the live fields.
+
+**Bank-account verification is never rate limited in local development**
+- The limiter needs a persistent cache. Some dev setups use `cache.adapter.array` for `framework.cache.app`, which resets per request — this disables Shopware's own login limiter too. Production caches persist.
 
 **Webhooks return 403 / signature validation failed**
 - The `secretHash` (or `secretHashSandbox` in sandbox mode) is either unset in the plugin configuration or does not exactly match the value under **Settings → Webhooks** in the Flutterwave dashboard. This is a value you choose, not one of your API keys.
