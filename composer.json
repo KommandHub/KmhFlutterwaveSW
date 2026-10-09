@@ -2,7 +2,7 @@
     "name": "kommandhub/flutterwave-sw",
     "description": "Professional Shopware 6 integration for Flutterwave: accept secure payments via cards, bank transfers, and mobile money. Expand your reach across Africa with this reliable checkout solution.",
     "type": "shopware-platform-plugin",
-    "version": "0.9.0-beta.1",
+    "version": "0.9.0-beta.2",
     "license": "Apache-2.0",
     "keywords": [
         "shopware",
