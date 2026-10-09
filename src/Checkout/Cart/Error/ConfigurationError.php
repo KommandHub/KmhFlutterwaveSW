@@ -36,7 +36,7 @@ class ConfigurationError extends Error
      */
     public function getMessageKey(): string
     {
-        return 'checkout.flutterwaveConfigurationError';
+        return 'flutterwaveConfigurationError';
     }
 
     /**

@@ -15,7 +15,7 @@ class ConfigurationErrorTest extends TestCase
         $error = new ConfigurationError();
 
         $this->assertSame('flutterwave-configuration-error', $error->getId());
-        $this->assertSame('checkout.flutterwaveConfigurationError', $error->getMessageKey());
+        $this->assertSame('flutterwaveConfigurationError', $error->getMessageKey());
         $this->assertTrue($error->isPersistent());
         $this->assertSame(Error::LEVEL_ERROR, $error->getLevel());
         $this->assertTrue($error->blockOrder());

@@ -16,9 +16,7 @@
       "notVerified": "Bitte verifizieren Sie Ihre Kontonummer vor dem Speichern."
     }
   },
-  "error": {
-    "checkout": {
-      "flutterwaveConfigurationError": "Flutterwave ist für diesen Shop nicht korrekt eingerichtet und kann derzeit nicht verwendet werden. Bitte wählen Sie eine andere Zahlungsart."
-    }
+  "checkout": {
+    "flutterwaveConfigurationError": "Flutterwave ist für diesen Shop nicht korrekt eingerichtet und kann derzeit nicht verwendet werden. Bitte wählen Sie eine andere Zahlungsart."
   }
 }

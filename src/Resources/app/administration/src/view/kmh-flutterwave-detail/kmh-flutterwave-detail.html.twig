@@ -308,6 +308,7 @@
                     :isLoading="isRefundLoading"
                     :processSuccess="isRefundSuccess"
                     @process-finish="onRefundFinished"
+                    @update:processSuccess="onRefundFinished"
                     @click="onConfirmRefund"
             >
                 {{ $t('kmh-flutterwave-detail.refund.confirmButton') }}
