@@ -50,6 +50,7 @@ Shopware.Component.register('kmh-flutterwave-detail', {
             isRefundSuccess: false,
             captures: [],
             refunds: [],
+            liveTransactionState: null,
             isLoading: false,
             config: {},
         };
@@ -72,6 +73,10 @@ Shopware.Component.register('kmh-flutterwave-detail', {
          */
         transactionCaptureRepository() {
             return this.repositoryFactory.create('order_transaction_capture');
+        },
+
+        transactionRepository() {
+            return this.repositoryFactory.create('order_transaction');
         },
 
         order() {
@@ -100,9 +105,23 @@ Shopware.Component.register('kmh-flutterwave-detail', {
             return this.flutterwaveTransaction?.customFields ?? {};
         },
 
+        /**
+         * Only a FULL refund closes the transaction; a partially refunded one
+         * still has balance left (maxRefundableAmount guards the amount).
+         */
         isTransactionRefunded() {
-            return this.flutterwaveTransaction?.stateMachineState?.technicalName === 'refunded'
-                || this.flutterwaveTransaction?.stateMachineState?.technicalName === 'refunded_partially';
+            return this.transactionState?.technicalName === 'refunded';
+        },
+
+        /**
+         * The order detail page edits a version copy of the order, created when
+         * the page opened, so its transaction state goes stale the moment a
+         * refund settles. Prefer the live state loaded alongside the captures.
+         *
+         * @returns {Object|null}
+         */
+        transactionState() {
+            return this.liveTransactionState ?? this.flutterwaveTransaction?.stateMachineState ?? null;
         },
 
         /**
@@ -127,7 +146,7 @@ Shopware.Component.register('kmh-flutterwave-detail', {
                 transactionId: cf[CF.transactionId],
                 fee: cf[CF.fee],
                 verifiedAt: cf[CF.verifiedAt],
-                state: this.flutterwaveTransaction.stateMachineState,
+                state: this.transactionState,
                 paymentMethod: this.flutterwaveTransaction.paymentMethod,
             }];
         },
@@ -284,6 +303,13 @@ Shopware.Component.register('kmh-flutterwave-detail', {
             );
         },
 
+        liveTransactionCriteria() {
+            const criteria = new Criteria();
+            criteria.addAssociation('stateMachineState');
+
+            return criteria;
+        },
+
         /**
          * Criteria for the captures belonging to one order transaction, with the
          * associations the grids need: each capture's state, its refunds, and
@@ -319,6 +345,13 @@ Shopware.Component.register('kmh-flutterwave-detail', {
             this.isLoading = true;
 
             try {
+                const liveTransaction = await this.transactionRepository.get(
+                    this.flutterwaveTransaction.id,
+                    Shopware.Context.api,
+                    this.liveTransactionCriteria()
+                );
+                this.liveTransactionState = liveTransaction?.stateMachineState ?? null;
+
                 const captureResult = await this.transactionCaptureRepository.search(
                     this.transactionCaptureCriteria(this.flutterwaveTransaction.id),
                     Shopware.Context.api
@@ -386,6 +419,12 @@ Shopware.Component.register('kmh-flutterwave-detail', {
         },
 
         onConfirmRefund() {
+            // The button keeps showing its success tick until process-finish
+            // closes the modal; a click in that window must not refund again.
+            if (this.isRefundLoading || this.isRefundSuccess) {
+                return;
+            }
+
             if (this.refundAmount < this.minRefundableAmount) {
                 this.createNotificationError({
                     message: this.$t('kmh-flutterwave-detail.refund.errorAmountTooLow', {

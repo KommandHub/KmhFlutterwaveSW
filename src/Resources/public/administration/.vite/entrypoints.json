@@ -3,11 +3,11 @@
   "entryPoints": {
     "kmh-flutterwave-s-w": {
       "css": [
-        "/bundles/kmhflutterwavesw/administration/assets/kmh-flutterwave-s-w-D72_ykDM.css"
+        "/bundles/kmhflutterwavesw/administration/assets/kmh-flutterwave-s-w-B34XPac3.css"
       ],
       "dynamic": [],
       "js": [
-        "/bundles/kmhflutterwavesw/administration/assets/kmh-flutterwave-s-w-N5kxzFdi.js"
+        "/bundles/kmhflutterwavesw/administration/assets/kmh-flutterwave-s-w-Bwj3XeNg.js"
       ],
       "legacy": false,
       "preload": []
