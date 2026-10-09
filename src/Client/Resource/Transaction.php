@@ -104,9 +104,9 @@ class Transaction extends ApiResource
      *
      * @throws FlutterwaveException
      */
-    public function refunds(string $transactionId, ?string $salesChannelId = null): array
+    public function refunds(string $transactionId, ?string $salesChannelId = null, int $page = 1): array
     {
-        return $this->response($this->httpClient->get('/refunds', ['id' => $transactionId], $salesChannelId));
+        return $this->response($this->httpClient->get('/refunds', ['id' => $transactionId, 'page' => $page], $salesChannelId));
     }
 
     /**

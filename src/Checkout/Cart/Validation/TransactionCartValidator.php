@@ -25,6 +25,8 @@ use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
 #[AutoconfigureTag('shopware.cart.validator')]
 class TransactionCartValidator implements CartValidatorInterface
 {
+    private const TEST_KEY_PREFIX = 'FLWSECK_TEST-';
+
     public function __construct(private readonly Config $config)
     {
     }
@@ -36,7 +38,16 @@ class TransactionCartValidator implements CartValidatorInterface
             return;
         }
 
-        if (empty($this->config->getSecretKey($context->getSalesChannelId()))) {
+        $salesChannelId = $context->getSalesChannelId();
+        $secretKey = $this->config->getSecretKey($salesChannelId);
+
+        // A key that does not match the mode is as unusable as a missing one,
+        // and dangerous both ways: a test key in live mode marks orders paid
+        // for mock card payments; a live key in sandbox mode takes real money
+        // while the merchant believes they are testing.
+        $isTestKey = str_starts_with($secretKey, self::TEST_KEY_PREFIX);
+
+        if ($secretKey === '' || $isTestKey !== $this->config->isSandbox($salesChannelId)) {
             $errors->add(new ConfigurationError());
         }
 

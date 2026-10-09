@@ -9,6 +9,10 @@ use Kommandhub\FlutterwaveSW\Webhook\Service\WebhookSignatureValidator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Framework\Context;
+use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\IdSearchResult;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
@@ -21,7 +25,23 @@ class WebhookSignatureValidatorTest extends TestCase
     protected function setUp(): void
     {
         $this->config = $this->createMock(Config::class);
-        $this->validator = new WebhookSignatureValidator($this->config);
+        $this->validator = new WebhookSignatureValidator($this->config, $this->salesChannels([]));
+    }
+
+    /**
+     * @param array<int, string> $ids
+     */
+    private function salesChannels(array $ids): EntityRepository&MockObject
+    {
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('searchIds')->willReturn(new IdSearchResult(
+            count($ids),
+            array_map(static fn (string $id): array => ['primaryKey' => $id, 'data' => []], $ids),
+            new Criteria(),
+            Context::createDefaultContext()
+        ));
+
+        return $repository;
     }
 
     private function request(?string $signature): Request
@@ -93,5 +113,31 @@ class WebhookSignatureValidatorTest extends TestCase
             ->willReturn('s3cret');
 
         $this->validator->validate($this->request('s3cret'), 'sales-channel-id');
+    }
+
+    /**
+     * The hash can be configured per sales channel only; a webhook must still
+     * be accepted even though it arrives before its channel is known.
+     */
+    public function testHashConfiguredOnlyOnASalesChannelIsAccepted(): void
+    {
+        $this->config->method('getSecretHash')->willReturnCallback(
+            static fn (?string $salesChannelId = null): string => $salesChannelId === 'channel-b' ? 'b-secret' : ''
+        );
+        $validator = new WebhookSignatureValidator($this->config, $this->salesChannels(['channel-a', 'channel-b']));
+
+        $validator->validate($this->request('b-secret'));
+        $this->addToAssertionCount(1);
+    }
+
+    public function testHashOfNoChannelIsRejected(): void
+    {
+        $this->config->method('getSecretHash')->willReturnCallback(
+            static fn (?string $salesChannelId = null): string => $salesChannelId === null ? 'global' : 'channel'
+        );
+        $validator = new WebhookSignatureValidator($this->config, $this->salesChannels(['channel-a']));
+
+        $this->expectException(AccessDeniedHttpException::class);
+        $validator->validate($this->request('nope'));
     }
 }

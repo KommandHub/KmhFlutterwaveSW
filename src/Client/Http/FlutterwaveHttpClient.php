@@ -19,6 +19,7 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 class FlutterwaveHttpClient implements HttpClientInterface
 {
     private const BASE_URL = 'https://api.flutterwave.com/v3';
+    private const TIMEOUT_SECONDS = 30;
 
     public function __construct(
         private readonly Config $config,
@@ -77,6 +78,9 @@ class FlutterwaveHttpClient implements HttpClientInterface
             throw new FlutterwaveException('Flutterwave secret key is not configured.');
         }
 
+        // Without a timeout a stalled Flutterwave call holds the customer's
+        // checkout (or the admin's refund) open for PHP's full execution time.
+        $options['timeout'] = self::TIMEOUT_SECONDS;
         $options['headers'] = [
             'Authorization' => 'Bearer ' . $secretKey,
             'Content-Type' => 'application/json',

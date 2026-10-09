@@ -11,12 +11,14 @@ use Kommandhub\FlutterwaveSW\Client\Resource\Transaction as TransactionResource;
 use Kommandhub\FlutterwaveSW\Logging\ConfigurableLogger;
 use Kommandhub\FlutterwaveSW\Service\OrderTransactionService;
 use Kommandhub\FlutterwaveSW\Service\PayloadBuilder;
+use Kommandhub\FlutterwaveSW\Util\FlutterwaveConstants;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionEntity;
 use Shopware\Core\Checkout\Order\OrderEntity;
 use Shopware\Core\Checkout\Payment\Cart\PaymentTransactionStruct;
 use Shopware\Core\Checkout\Payment\PaymentException;
 use Shopware\Core\Framework\Context;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 class PaymentProcessorTest extends TestCase
 {
@@ -24,6 +26,7 @@ class PaymentProcessorTest extends TestCase
     private FlutterwaveClient|\PHPUnit\Framework\MockObject\MockObject $flutterwave;
     private PayloadBuilder|\PHPUnit\Framework\MockObject\MockObject $payloadBuilder;
     private ConfigurableLogger|\PHPUnit\Framework\MockObject\MockObject $logger;
+    private UrlGeneratorInterface|\PHPUnit\Framework\MockObject\MockObject $urlGenerator;
     private PaymentProcessor $processor;
 
     protected function setUp(): void
@@ -32,12 +35,17 @@ class PaymentProcessorTest extends TestCase
         $this->flutterwave = $this->createMock(FlutterwaveClient::class);
         $this->payloadBuilder = $this->createMock(PayloadBuilder::class);
         $this->logger = $this->createMock(ConfigurableLogger::class);
+        $this->urlGenerator = $this->createMock(UrlGeneratorInterface::class);
+        $this->urlGenerator->method('generate')->willReturnCallback(
+            static fn (string $route, array $params): string => sprintf('http://shop/flutterwave/return/%s/%s', $params['orderTransactionId'], $params['nonce'])
+        );
 
         $this->processor = new PaymentProcessor(
             $this->orderTransactionService,
             $this->flutterwave,
             $this->payloadBuilder,
-            $this->logger
+            $this->logger,
+            $this->urlGenerator
         );
     }
 
@@ -59,9 +67,25 @@ class PaymentProcessorTest extends TestCase
             ->willReturn($orderTransaction);
 
         $payload = new PaymentPayload(100.0, 'USD', 'REF-1', 'http://return.url', 'test@example.com');
+        // Shopware's finalize URL is stored server-side with a nonce...
+        $storedNonce = null;
+        $this->orderTransactionService->expects(static::once())
+            ->method('update')
+            ->with(static::callback(static function (array $payload) use (&$storedNonce): bool {
+                $return = $payload[0]['customFields'][FlutterwaveConstants::FIELD_RETURN];
+                $storedNonce = $return['nonce'];
+
+                return $payload[0]['id'] === 'transaction-1'
+                    && $return['url'] === 'http://return.url'
+                    && strlen($return['nonce']) === 32;
+            }));
+
+        // ...and Flutterwave is given the clean plugin route carrying that nonce.
         $this->payloadBuilder->expects(static::once())
             ->method('build')
-            ->with($orderTransaction, $transactionStruct)
+            ->with($orderTransaction, static::callback(static function (PaymentTransactionStruct $struct) use (&$storedNonce): bool {
+                return $struct->getReturnUrl() === 'http://shop/flutterwave/return/transaction-1/' . $storedNonce;
+            }))
             ->willReturn($payload);
 
         $transactionResource = $this->createMock(TransactionResource::class);

@@ -218,7 +218,7 @@ class OrderTransactionService
         $criteria = new Criteria();
         $criteria->addFilter(new EqualsFilter('externalReference', $externalReference));
         $criteria->addAssociation('stateMachineState');
-        $criteria->addAssociation('transactionCapture.transaction');
+        $criteria->addAssociation('transactionCapture.transaction.order');
         $criteria->setLimit(1);
 
         $refund = $this->orderTransactionCaptureRefundRepository->search($criteria, $context)->first();
